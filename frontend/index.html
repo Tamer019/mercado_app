@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supermarkt Preisvergleich</title>
+  <style>
+    /* Das hier ist das Design — Farben, Abstände, Schriften */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 24px;
+      color: #1a1a1a;
+    }
+
+    .suchbox {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    input {
+      flex: 1;
+      min-width: 140px;
+      padding: 12px 16px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #4f8ef7;
+    }
+
+    button {
+      padding: 12px 24px;
+      background: #4f8ef7;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover { background: #3a7de0; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+
+    .status {
+      text-align: center;
+      color: #666;
+      margin: 20px 0;
+      font-size: 15px;
+    }
+
+    .ergebnis-karte {
+      background: white;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .haendler {
+      font-weight: 600;
+      font-size: 16px;
+      min-width: 80px;
+    }
+
+    .produkt-info {
+      flex: 1;
+    }
+
+    .produkt-name {
+      font-size: 15px;
+      color: #333;
+    }
+
+    .beschreibung {
+      font-size: 13px;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .gueltigkeit {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 4px;
+    }
+
+    .preis-bereich {
+      text-align: right;
+    }
+
+    .preis {
+      font-size: 22px;
+      font-weight: 700;
+      color: #2ecc71;
+    }
+
+    .alter-preis {
+      font-size: 13px;
+      color: #aaa;
+      text-decoration: line-through;
+    }
+
+    .angebot-badge {
+      background: #ff4757;
+      color: white;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-top: 4px;
+      display: inline-block;
+    }
+
+    .haendler-lidl { color: #0050aa; }
+    .haendler-aldi { color: #00539f; }
+    .haendler-rewe { color: #cc0000; }
+    .haendler-edeka { color: #e2a100; }
+    .haendler-kaufland { color: #cc0000; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛒 Supermarkt Preisvergleich</h1>
+
+    <!-- Das ist die Suchbox -->
+    <div class="suchbox">
+      <input
+        type="text"
+        id="suchbegriff"
+        placeholder="Produkt eingeben, z.B. Mango"
+        onkeydown="if(event.key==='Enter') suchen()"
+      />
+      <input
+        type="text"
+        id="plz"
+        placeholder="PLZ"
+        value="72555"
+        style="max-width: 100px;"
+        onkeydown="if(event.key==='Enter') suchen()"
+      />
+      <button onclick="suchen()" id="such-button">Suchen</button>
+    </div>
+
+    <!-- Hier erscheinen die Ergebnisse -->
+    <div id="ergebnisse"></div>
+  </div>
+
+  <script>
+    // Das hier ist die Logik — was passiert wenn du auf Suchen klickst
+
+    async function suchen() {
+      const suchbegriff = document.getElementById('suchbegriff').value.trim();
+      const plz = document.getElementById('plz').value.trim();
+      const ergebnisseDiv = document.getElementById('ergebnisse');
+      const button = document.getElementById('such-button');
+
+      // Nichts tun wenn Suchfeld leer
+      if (!suchbegriff) {
+        ergebnisseDiv.innerHTML = '<p class="status">Bitte einen Suchbegriff eingeben.</p>';
+        return;
+      }
+
+      // Ladeanimation zeigen
+      button.disabled = true;
+      button.textContent = 'Suche...';
+      ergebnisseDiv.innerHTML = '<p class="status">⏳ Suche läuft...</p>';
+
+      try {
+        // Backend aufrufen — das ist die Verbindung zu unserem Python Server
+        const antwort = await fetch(`http://127.0.0.1:8000/search?q=${encodeURIComponent(suchbegriff)}&plz=${plz}`);
+        const daten = await antwort.json();
+
+        if (daten.anzahl === 0) {
+          ergebnisseDiv.innerHTML = '<p class="status">Keine Angebote gefunden. Versuche einen anderen Suchbegriff.</p>';
+          return;
+        }
+
+        // Ergebnisse anzeigen
+        let html = `<p class="status">${daten.anzahl} Angebote gefunden</p>`;
+
+        daten.ergebnisse.forEach(angebot => {
+          // Datum schön formatieren
+          const vonDatum = angebot.gueltig_von
+            ? new Date(angebot.gueltig_von).toLocaleDateString('de-DE')
+            : '';
+          const bisDatum = angebot.gueltig_bis
+            ? new Date(angebot.gueltig_bis).toLocaleDateString('de-DE')
+            : '';
+
+          // Händlername für Farbe vorbereiten
+          const haendlerKlasse = 'haendler-' + angebot.haendler.toLowerCase().replace(' ', '');
+
+          // Angebot Badge wenn es einen alten Preis gibt
+          const angebotBadge = angebot.alter_preis
+            ? `<span class="angebot-badge">Angebot</span>`
+            : '';
+
+          const alterPreis = angebot.alter_preis
+            ? `<div class="alter-preis">statt ${angebot.alter_preis.toFixed(2)}€</div>`
+            : '';
+
+          html += `
+            <div class="ergebnis-karte">
+              <div class="haendler ${haendlerKlasse}">${angebot.haendler}</div>
+              <div class="produkt-info">
+                <div class="produkt-name">${angebot.produkt}</div>
+                <div class="beschreibung">${angebot.beschreibung}</div>
+                <div class="gueltigkeit">📅 ${vonDatum} – ${bisDatum}</div>
+              </div>
+              <div class="preis-bereich">
+                <div class="preis">${angebot.preis.toFixed(2)}€</div>
+                ${alterPreis}
+                ${angebotBadge}
+              </div>
+            </div>
+          `;
+        });
+
+        ergebnisseDiv.innerHTML = html;
+
+      } catch (fehler) {
+        ergebnisseDiv.innerHTML = '<p class="status">❌ Fehler: Ist der Backend Server gestartet?</p>';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Suchen';
+      }
+    }
+  </script>
+</body>
+</html>
