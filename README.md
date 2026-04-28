@@ -2,12 +2,24 @@
 
 Ein Web-Scraper + API + Frontend für den Vergleich von Supermarkt-Angeboten (basierend auf Marktguru-Daten).
 
+**Status:** ✅ Backend live auf Render | ⏳ Frontend wird als nächstes gedeployed
+
+
 ## 🧠 Projektübersicht
 
 - **Scraper** ruft täglich Angebote von der Marktguru-API ab und speichert sie in einer PostgreSQL-Datenbank.
 - **FastAPI-Backend** stellt die gespeicherten Daten über eine Such-API bereit.
 - **Frontend** (HTML/CSS/JS) erlaubt die interaktive Suche nach Produkten.
 - Initial mit GitHub Copilot CLI begonnen, wird aber manuell weiterentwickelt.
+
+---
+
+## 🌍 Live Demo (Backend)
+
+- **Root-Endpoint:** https://mercado-app019.onrender.com/
+- **Such-Endpoint Beispiel:** https://mercado-app019.onrender.com/search?q=mango&plz=72555
+
+> Das Frontend folgt danach auf Netlify.
 
 ---
 
@@ -20,6 +32,8 @@ Ein Web-Scraper + API + Frontend für den Vergleich von Supermarkt-Angeboten (ba
 | Frontend      | Vanilla HTML/CSS/JS            |
 | Datenbank     | PostgreSQL                     |
 | Server (lokal)| `http.server` (Frontend)       |
+| Hosting (API) | Render (kostenlos)             |
+| Hosting (FE)  | Netlify (kostenlos, geplant)   |
 
 ---
 
@@ -109,7 +123,7 @@ CREATE TABLE IF NOT EXISTS angebote (
 );
 ```
 
-# 🚀 Starten
+# 🚀 Lokal Starten
 
 Automatisch (Backend + Frontend parallel)
 
@@ -146,8 +160,34 @@ Scraped folgende Produkte:
 PRODUKTE = ["walnuss", "mandel", "eier", "milch", "gurke", "tomate"]
 PLZ = "72555"
 ```
+## ☁️ Deployment (aktueller Stand)
+
+Backend auf Render (✅ live)
+
+Name: mercado-app019
+Start Command: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+Build Command: pip install -r requirements.txt
+Environment Variable: DATABASE_URL (PostgreSQL-Connection-String)
+
+Frontend auf Netlify (⏳)
+
+In frontend/script.js die fetch-URL ersetzen durch:
+
+```
+const antwort = await fetch(`https://mercado-app019.onrender.com/search?q=${encodeURIComponent(suchbegriff)}&plz=${plz}`);
+```
+frontend/-Ordner per Drag & Drop auf netlify.com
+
 
 ## 📡 API-Endpoint
+```
+GET /
+````
+Antwort:
+´´´
+{"message": "Mercado API läuft!"}
+´´´
+
 ```
 GET /search
 ```
