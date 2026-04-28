@@ -20,6 +20,10 @@ HEADERS = {
     "x-apikey": "8Kk+pmbf7TgJ9nVj2cXeA7P5zBGv8iuutVVMRfOfvNE="
 }
 
+@app.get("/")
+def root():
+    return {"message": "Mercado API läuft!"}
+
 @app.get("/search")
 def suche(q: str, plz: str = "70178"):
     """
