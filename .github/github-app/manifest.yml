@@ -1,0 +1,14 @@
+name: "mercado-app-assistant"
+url: "https://github.com/Tamer019/mercado_app"
+hook_attributes:
+  url: "https://example.com/webhook" # replace with your webhook URL if you have one
+public: false
+
+default_permissions:
+  issues: read
+  contents: read
+  metadata: read
+
+default_events:
+  - issues
+  - issue_comment
