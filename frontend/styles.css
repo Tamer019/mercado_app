@@ -1,0 +1,234 @@
+/* Dark theme with light green accents */
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0; 
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+  color: #e0e0e0;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 28px;
+  margin-bottom: 24px;
+  color: #4ade80;
+  text-shadow: 0 2px 8px rgba(74, 222, 128, 0.2);
+}
+
+.suchbox {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  margin-bottom: 24px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  backdrop-filter: blur(10px);
+}
+
+input {
+  flex: 1;
+  min-width: 140px;
+  padding: 12px 16px;
+  background: rgba(15, 20, 25, 0.6);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 16px;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+input::placeholder {
+  color: rgba(224, 224, 224, 0.4);
+}
+
+input:focus {
+  border-color: #4ade80;
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.3);
+  background: rgba(15, 20, 25, 0.8);
+}
+
+button {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  color: #0f1419;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.3);
+}
+
+button:hover { 
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(74, 222, 128, 0.5);
+}
+
+button:disabled { 
+  background: #4b5563;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.status {
+  text-align: center;
+  color: #94a3b8;
+  margin: 20px 0;
+  font-size: 15px;
+}
+
+.ergebnis-karte {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.3s ease;
+}
+
+.ergebnis-karte:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(74, 222, 128, 0.5);
+  box-shadow: 0 6px 20px rgba(74, 222, 128, 0.2);
+}
+
+.haendler {
+  font-weight: 600;
+  font-size: 16px;
+  min-width: 80px;
+  padding: 6px 10px;
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #4ade80;
+}
+
+.produkt-info {
+  flex: 1;
+}
+
+.produkt-name {
+  font-size: 15px;
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.beschreibung {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.gueltigkeit {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.preis-bereich {
+  text-align: right;
+}
+
+.preis {
+  font-size: 24px;
+  font-weight: 700;
+  color: #4ade80;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.3);
+}
+
+.alter-preis {
+  font-size: 13px;
+  color: #fb7185;
+  text-decoration: line-through;
+  margin-top: 2px;
+}
+
+.angebot-badge {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-top: 4px;
+  display: inline-block;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Retailer colors with light green accent */
+.haendler-lidl { color: #60a5fa; }
+.haendler-aldi { color: #4ade80; }
+.haendler-rewe { color: #fb7185; }
+.haendler-edeka { color: #fbbf24; }
+.haendler-kaufland { color: #fb7185; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 20, 25, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4ade80;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #22c55e;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  h1 {
+    font-size: 24px;
+  }
+
+  .suchbox {
+    flex-direction: column;
+  }
+
+  input {
+    width: 100%;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  .ergebnis-karte {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .preis-bereich {
+    text-align: left;
+    width: 100%;
+  }
+
+  .haendler {
+    width: 100%;
+  }
+}
