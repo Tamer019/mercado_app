@@ -19,7 +19,8 @@ async function suchen() {
 
   try {
     // Call backend
-    const antwort = await fetch(`http://127.0.0.1:8000/search?q=${encodeURIComponent(suchbegriff)}&plz=${plz}`);
+    // const antwort = await fetch(`http://127.0.0.1:8000/search?q=${encodeURIComponent(suchbegriff)}&plz=${plz}`);
+    const antwort = await fetch(`https://mercado-app019.onrender.com/search?q=${encodeURIComponent(suchbegriff)}&plz=${plz}`);
     const daten = await antwort.json();
 
     if (daten.anzahl === 0) {
