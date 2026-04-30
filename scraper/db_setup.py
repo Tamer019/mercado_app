@@ -35,6 +35,39 @@ def create_tables():
         )
     """)
 
+    # ============================================
+    # TESTFALL 1: Admin manuell eingetragener Normalpreis
+    # (kein Angebot, nie dagewesen)
+    # ============================================
+    cursor.execute("""
+        INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+        VALUES ('Bio Hafermilch', 'Mein Dorfladen', '72555', 2.49, 'admin_manuell')
+        ON CONFLICT (produkt_name, haendler, plz) 
+        DO UPDATE SET preis = EXCLUDED.preis, quelle = 'admin_manuell'
+    """)
+
+    # ============================================
+    # TESTFALL 2: Abgelaufenes Angebot (gescrapt, jetzt nicht mehr aktiv)
+    # Originalpreis wurde aus alter_preis gespeichert
+    # ============================================
+    cursor.execute("""
+        INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+        VALUES ('Vegane Butter', 'Supermarkt XY', '72555', 3.99, 'scraper_historisch')
+        ON CONFLICT (produkt_name, haendler, plz) 
+        DO UPDATE SET preis = EXCLUDED.preis, quelle = 'scraper_historisch'
+    """)
+
+    # ============================================
+    # TESTFALL 3: Aktuelles Angebot + Originalpreis sichtbar
+    # Händler "DemoMarkt" hat aktuell Angebot in API (Mango)
+    # ============================================
+    cursor.execute("""
+        INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+        VALUES ('Mango', 'DemoMarkt', '72555', 2.99, 'api_original')
+        ON CONFLICT (produkt_name, haendler, plz) 
+        DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_original'
+    """)
+    
     conn.commit()
     cursor.close()
     conn.close()
