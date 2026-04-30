@@ -38,6 +38,36 @@ async def init_db():
                 UNIQUE(produkt_name, haendler, plz)
             )
         """)
+        # ============================================
+        # TESTFALL 1: Admin manuell eingetragener Normalpreis
+        # ============================================
+        await conn.execute("""
+            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+            VALUES ('Bio Hafermilch', 'Mein Dorfladen', '72555', 2.49, 'admin_manuell')
+            ON CONFLICT (produkt_name, haendler, plz) 
+            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'admin_manuell'
+        """)
+        
+        # ============================================
+        # TESTFALL 2: Abgelaufenes Angebot (gescrapt)
+        # ============================================
+        await conn.execute("""
+            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+            VALUES ('Vegane Butter', 'Supermarkt XY', '72555', 3.99, 'scraper_historisch')
+            ON CONFLICT (produkt_name, haendler, plz) 
+            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'scraper_historisch'
+        """)
+        
+        # ============================================
+        # TESTFALL 3: Aktuelles Angebot + Originalpreis
+        # ============================================
+        await conn.execute("""
+            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+            VALUES ('Mango', 'DemoMarkt', '72555', 2.99, 'api_original')
+            ON CONFLICT (produkt_name, haendler, plz) 
+            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_original'
+        """)
+        
         await conn.close()
         print("✅ Tabelle 'originalpreise' ist bereit")
     except Exception as e:
