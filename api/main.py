@@ -52,10 +52,15 @@ async def init_db():
         # TESTFALL 2: Abgelaufenes Angebot (gescrapt)
         # ============================================
         await conn.execute("""
-            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-            VALUES ('Vegane Butter', 'Supermarkt XY', '72555', 3.99, 'scraper_historisch')
-            ON CONFLICT (produkt_name, haendler, plz) 
-            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'scraper_historisch'
+            INSERT INTO angebote (
+                produkt_name, beschreibung, haendler, preis, alter_preis, 
+                einheit, kategorie, gueltig_von, gueltig_bis, plz
+            ) VALUES (
+                'Vegane Butter', 'Pflanzliche Butter Alternative', 'Supermarkt XY', 
+                2.99, 3.99, '250g', 'Vegane Produkte', 
+                '2026-01-15 00:00:00', '2026-01-30 23:59:59', '72555'
+            )
+            ON CONFLICT (produkt_name, haendler, gueltig_von) DO NOTHING
         """)
         
         # ============================================
@@ -63,7 +68,7 @@ async def init_db():
         # ============================================
         await conn.execute("""
             INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-            VALUES ('Mango', 'DemoMarkt', '72555', 2.99, 'api_original')
+            VALUES ('Mango', 'ALDI SÜD', '72555', 2.99, 'api_original')
             ON CONFLICT (produkt_name, haendler, plz) 
             DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_original'
         """)
