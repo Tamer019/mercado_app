@@ -44,13 +44,33 @@ async function suchen() {
       const haendlerKlasse = 'haendler-' + angebot.haendler.toLowerCase().replace(/\s+/g, '');
 
       // Show offer badge if there's an old price
-      const angebotBadge = angebot.alter_preis
-        ? `<span class="angebot-badge">Angebot</span>`
-        : '';
+      //const angebotBadge = angebot.alter_preis
+      //  ? `<span class="angebot-badge">Angebot</span>`
+      //  : '';
 
-      const alterPreis = angebot.alter_preis
-        ? `<div class="alter-preis">statt ${angebot.alter_preis.toFixed(2)}€</div>`
-        : '';
+// 🔥 NEU: Anzeige basierend auf ist_angebot
+      let badgeHtml = '';
+      let preisHtml = '';
+
+      if (angebot.ist_angebot === true) {
+        badgeHtml = '<span class="angebot-badge">🔥 Aktuell im Angebot</span>';
+        if (angebot.alter_preis && angebot.alter_preis > 0) {
+          preisHtml = `
+            <div class="preis">${angebot.preis.toFixed(2)}€ 
+              <span class="statt-preis">statt ${angebot.alter_preis.toFixed(2)}€</span>
+            </div>
+          `;
+        } else {
+          preisHtml = `<div class="preis">${angebot.preis.toFixed(2)}€</div>`;
+        }
+      } else {
+        badgeHtml = '<span class="normalpreis-badge">💰 Normalpreis (kein Angebot)</span>';
+        preisHtml = `<div class="preis normal">${angebot.preis.toFixed(2)}€</div>`;
+      }
+      
+      //const alterPreis = angebot.alter_preis
+      //  ? `<div class="alter-preis">statt ${angebot.alter_preis.toFixed(2)}€</div>`
+      //  : '';
 
       html += `
         <div class="ergebnis-karte">
@@ -58,12 +78,11 @@ async function suchen() {
           <div class="produkt-info">
             <div class="produkt-name">${angebot.produkt}</div>
             <div class="beschreibung">${angebot.beschreibung}</div>
-            <div class="gueltigkeit">📅 ${vonDatum} – ${bisDatum}</div>
+            ${vonDatum ? `<div class="gueltigkeit">📅 ${vonDatum} – ${bisDatum}</div>` : ''}
           </div>
           <div class="preis-bereich">
-            <div class="preis">${angebot.preis.toFixed(2)}€</div>
-            ${alterPreis}
-            ${angebotBadge}
+            ${preisHtml}
+            ${badgeHtml}
           </div>
         </div>
       `;

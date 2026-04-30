@@ -232,3 +232,28 @@ button:disabled {
     width: 100%;
   }
 }
+
+/* Neue Styles für Normalpreis-Badge */
+.normalpreis-badge {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  margin-top: 4px;
+  display: inline-block;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.statt-preis {
+  font-size: 14px;
+  color: #fb7185;
+  text-decoration: line-through;
+  font-weight: normal;
+}
+
+.preis.normal {
+  color: #60a5fa;
+  text-shadow: none;
+}
