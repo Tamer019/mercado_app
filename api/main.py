@@ -1,10 +1,8 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-import json
 from fastapi.middleware.cors import CORSMiddleware
 import requests
-import os
-from db_connection import get_connection
+from .db_connection import get_connection
 
 
 app = FastAPI()
