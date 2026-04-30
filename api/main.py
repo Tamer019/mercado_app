@@ -22,6 +22,32 @@ HEADERS = {
     "x-apikey": "8Kk+pmbf7TgJ9nVj2cXeA7P5zBGv8iuutVVMRfOfvNE="
 }
 
+# Datenbank-Initialisierung (Tabelle erstellen, falls nicht vorhanden)
+async def init_db():
+    try:
+        conn = await get_connection()
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS originalpreise (
+                id              SERIAL PRIMARY KEY,
+                produkt_name    VARCHAR(200) NOT NULL,
+                haendler        VARCHAR(100) NOT NULL,
+                plz             VARCHAR(10) NOT NULL,
+                preis           FLOAT NOT NULL,
+                quelle          VARCHAR(50) DEFAULT 'API',
+                updated_at      TIMESTAMP DEFAULT NOW(),
+                UNIQUE(produkt_name, haendler, plz)
+            )
+        """)
+        await conn.close()
+        print("✅ Tabelle 'originalpreise' ist bereit")
+    except Exception as e:
+        print(f"❌ Fehler bei DB-Initialisierung: {e}")
+
+# Startup-Event: Läuft einmal beim Start
+@app.on_event("startup")
+async def startup():
+    await init_db()
+
 @app.get("/")
 def root():
     return {"message": "Mercado API läuft!"}
