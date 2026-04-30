@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse
 import json
 from fastapi.middleware.cors import CORSMiddleware
 import requests
-import psycopg2
 import os
 from db_connection import get_connection
 
@@ -30,7 +29,8 @@ def root():
     return {"message": "Mercado API läuft!"}
 
 @app.get("/search")
-def suche(q: str, plz: str = "70178"):
+async def suche(q: str, plz: str = "70178"):
+#def suche(q: str, plz: str = "70178"):
     """
     Produkt suchen und Preise vergleichen.
     Beispiel: /search?q=mango&plz=72555
@@ -64,20 +64,18 @@ def suche(q: str, plz: str = "70178"):
                 "ist_angebot": True
             }
 
-# 3. Originalpreise aus DB holen (für alle Händler, die KEIN Angebot haben)
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
+ # 3. Originalpreise aus DB holen
+    conn = await get_connection()
+    
+    rows = await conn.fetch("""
         SELECT produkt_name, haendler, preis 
         FROM originalpreise 
-        WHERE produkt_name ILIKE %s AND plz = %s
-    """, (f"%{q}%", plz))
+        WHERE produkt_name ILIKE $1 AND plz = $2
+    """, f"%{q}%", plz)
+    
+    await conn.close()
 
-    db_preise = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
+    # 4. Ergebnisse mergen
     # Nur die wichtigsten Felder zurückgeben
     ergebnisse = []
 
@@ -97,7 +95,7 @@ def suche(q: str, plz: str = "70178"):
         })
 
     # Dann Händler aus DB hinzufügen, die KEIN Angebot haben
-    for row in db_preise:
+    for row in rows:
         produkt_name_db, haendler_db, preis_db = row
         if haendler_db not in haendler_mit_angebot:
             ergebnisse.append({
