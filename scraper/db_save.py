@@ -18,6 +18,16 @@ def save_angebote(angebote, plz):
         einheit       = angebot.get("unit", {}).get("shortName", "")
         kategorie     = angebot.get("categories", [{}])[0].get("name", "")
 
+        # Originalpreis speichern (wenn alter_preis existiert)
+        if alter_preis is not None and alter_preis > 0:
+            cursor.execute("""
+                INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+                VALUES (%s, %s, %s, %s, 'API')
+                ON CONFLICT (produkt_name, haendler, plz)
+                DO UPDATE SET preis = EXCLUDED.preis, updated_at = NOW()
+            """, (produkt_name, haendler, plz, alter_preis))
+
+
         # Datum parsen
         dates       = angebot.get("validityDates", [{}])
         gueltig_von = dates[0].get("from", "") if dates else ""
