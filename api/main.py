@@ -3,7 +3,10 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 from .db_connection import get_connection
-
+# admin api
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
 
 app = FastAPI()
 
@@ -21,6 +24,19 @@ HEADERS = {
     "x-clientkey": "WU/RH+PMGDi+gkZer3WbMelt6zcYHSTytNB7VpTia90=",
     "x-apikey": "8Kk+pmbf7TgJ9nVj2cXeA7P5zBGv8iuutVVMRfOfvNE="
 }
+
+# Admin Auth (Hardcoded für den Anfang)
+security = HTTPBasic()
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "mercado2025"
+
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
+    correct_password = secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+    if not (correct_username and correct_password):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return True
+
 
 # Datenbank-Initialisierung (Tabelle erstellen, falls nicht vorhanden)
 async def init_db():
@@ -83,6 +99,7 @@ async def init_db():
 async def startup():
     await init_db()
 
+# ========== PUBLIC ENDPOINTS ==========
 @app.get("/")
 def root():
     return {"message": "Mercado API läuft!"}
@@ -196,5 +213,42 @@ async def suche(q: str, plz: str = "70178"):
         media_type="application/json; charset=utf-8"
 )
 
+# ========== ADMIN ENDPOINTS ==========
+
+@app.get("/admin/preise")
+async def get_all_originalpreise(auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    rows = await conn.fetch("""
+        SELECT id, produkt_name, haendler, plz, preis, quelle, updated_at
+        FROM originalpreise
+        ORDER BY produkt_name, haendler
+    """)
+    await conn.close()
+    return [dict(row) for row in rows]
+
+@app.post("/admin/preise")
+async def add_originalpreis(
+    produkt_name: str, 
+    haendler: str, 
+    plz: str, 
+    preis: float,
+    auth: bool = Depends(verify_admin)
+):
+    conn = await get_connection()
+    await conn.execute("""
+        INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+        VALUES ($1, $2, $3, $4, 'admin_manuell')
+        ON CONFLICT (produkt_name, haendler, plz)
+        DO UPDATE SET preis = EXCLUDED.preis, quelle = 'admin_manuell', updated_at = NOW()
+    """, produkt_name, haendler, plz, preis)
+    await conn.close()
+    return {"message": "Preis gespeichert"}
+
+@app.delete("/admin/preise/{id}")
+async def delete_originalpreis(id: int, auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    await conn.execute("DELETE FROM originalpreise WHERE id = $1", id)
+    await conn.close()
+    return {"message": "Preis gelöscht"}
 
 

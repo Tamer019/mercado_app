@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Originalpreise verwalten</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 12px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(74, 222, 128, 0.2);
+        }
+        th {
+            color: #4ade80;
+        }
+        form {
+            background: rgba(30, 41, 59, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        input, button {
+            margin: 5px;
+            padding: 8px;
+        }
+        .delete-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="admin-container">
+    <h1>🛠️ Admin: Originalpreise verwalten</h1>
+    
+    <form id="loginForm" style="display: block;">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Benutzername" required>
+        <input type="password" id="password" placeholder="Passwort" required>
+        <button type="submit">Einloggen</button>
+    </form>
+
+    <div id="adminContent" style="display: none;">
+        <form id="priceForm">
+            <h2>Neuen Preis hinzufügen / bearbeiten</h2>
+            <input type="text" id="produkt_name" placeholder="Produktname" required>
+            <input type="text" id="haendler" placeholder="Händler" required>
+            <input type="text" id="plz" placeholder="PLZ" value="72555" required>
+            <input type="number" id="preis" step="0.01" placeholder="Preis" required>
+            <button type="submit">Speichern</button>
+        </form>
+
+        <h2>Vorhandene Preise</h2>
+        <table id="preiseTable">
+            <thead>
+                <tr><th>ID</th><th>Produkt</th><th>Händler</th><th>PLZ</th><th>Preis</th><th>Quelle</th><th>Aktion</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'https://mercado-app019.onrender.com';
+    let authToken = null;
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        // Basic Auth Header bauen
+        const credentials = btoa(`${username}:${password}`);
+
+        try {
+            const res = await fetch(`${API_URL}/admin/preise`, {
+                headers: { 'Authorization': `Basic ${credentials}` }
+            });
+            if (res.ok) {
+                authToken = credentials;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
+                loadPreise();
+            } else {
+                alert('Login fehlgeschlagen');
+            }
+        } catch(err) {
+            alert('Server nicht erreichbar');
+        }
+    });
+
+    async function loadPreise() {
+        const res = await fetch(`${API_URL}/admin/preise`, {
+            headers: { 'Authorization': `Basic ${authToken}` }
+        });
+        const data = await res.json();
+        const tbody = document.querySelector('#preiseTable tbody');
+        tbody.innerHTML = '';
+        data.forEach(p => {
+            const row = tbody.insertRow();
+            row.insertCell(0).innerText = p.id;
+            row.insertCell(1).innerText = p.produkt_name;
+            row.insertCell(2).innerText = p.haendler;
+            row.insertCell(3).innerText = p.plz;
+            row.insertCell(4).innerText = p.preis + '€';
+            row.insertCell(5).innerText = p.quelle;
+            const deleteCell = row.insertCell(6);
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerText = 'Löschen';
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.onclick = () => deletePreis(p.id);
+            deleteCell.appendChild(deleteBtn);
+        });
+    }
+
+    async function deletePreis(id) {
+        if (confirm('Wirklich löschen?')) {
+            await fetch(`${API_URL}/admin/preise/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Basic ${authToken}` }
+            });
+            loadPreise();
+        }
+    }
+
+    document.getElementById('priceForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const produkt_name = document.getElementById('produkt_name').value;
+        const haendler = document.getElementById('haendler').value;
+        const plz = document.getElementById('plz').value;
+        const preis = parseFloat(document.getElementById('preis').value);
+
+        const params = new URLSearchParams({ produkt_name, haendler, plz, preis });
+        await fetch(`${API_URL}/admin/preise?${params}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Basic ${authToken}` }
+        });
+        loadPreise();
+        document.getElementById('priceForm').reset();
+    });
+</script>
+</body>
+</html>
