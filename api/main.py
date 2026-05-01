@@ -84,7 +84,7 @@ async def init_db():
         # ============================================
         await conn.execute("""
             INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-            VALUES ('Mango', 'ALDI SÜD', '72555', 2.99, 'api_original')
+            VALUES ('Walnusskerne', 'DemoMarkt', '72555', 5.99, 'api_original')
             ON CONFLICT (produkt_name, haendler, plz) 
             DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_original'
         """)
