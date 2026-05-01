@@ -28,7 +28,7 @@ HEADERS = {
 # Admin Auth (Hardcoded für den Anfang)
 security = HTTPBasic()
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "mercado2025"
+ADMIN_PASSWORD = "mercado19"
 
 def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
@@ -252,3 +252,51 @@ async def delete_originalpreis(id: int, auth: bool = Depends(verify_admin)):
     return {"message": "Preis gelöscht"}
 
 
+@app.post("/admin/sync-oldprices")
+async def sync_oldprices(auth: bool = Depends(verify_admin)):
+    # Produkte aus deinem scraper/main.py
+    PRODUKTE = ["walnuss", "mandel", "eier", "milch", "gurke", "tomate", "mango"]
+    PLZ = "72555"
+    
+    gespeichert = 0
+    fehler = 0
+    
+    for produkt in PRODUKTE:
+        try:
+            # API-Aufruf für jedes Produkt
+            response = requests.get(MARKTGURU_URL, params={
+                "as": "web",
+                "limit": 50,
+                "offset": 0,
+                "q": produkt,
+                "zipCode": PLZ
+            }, headers=HEADERS)
+            
+            daten = response.json()
+            angebote = daten.get("results", [])
+            
+            for angebot in angebote:
+                alter_preis = angebot.get("oldPrice")
+                if alter_preis and alter_preis > 0:
+                    produkt_name = angebot.get("product", {}).get("name", "")
+                    haendler = angebot.get("advertisers", [{}])[0].get("name", "")
+                    
+                    if produkt_name and haendler:
+                        conn = await get_connection()
+                        await conn.execute("""
+                            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+                            VALUES ($1, $2, $3, $4, 'api_sync')
+                            ON CONFLICT (produkt_name, haendler, plz)
+                            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_sync', updated_at = NOW()
+                        """, produkt_name, haendler, PLZ, alter_preis)
+                        await conn.close()
+                        gespeichert += 1
+        except Exception as e:
+            fehler += 1
+            print(f"Fehler bei {produkt}: {e}")
+    
+    return {
+        "message": "Sync abgeschlossen",
+        "gespeichert": gespeichert,
+        "fehler": fehler
+    }
