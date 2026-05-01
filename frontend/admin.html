@@ -42,6 +42,25 @@
             border-radius: 6px;
             cursor: pointer;
         }
+        #syncBtn {
+            background: #4ade80;
+            color: black;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #syncBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .sync-box {
+            background: rgba(74, 222, 128, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -56,6 +75,12 @@
     </form>
 
     <div id="adminContent" style="display: none;">
+        <div style="background: rgba(74, 222, 128, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+        <h3>🔄 OldPrice Sync</h3>
+        <button id="syncBtn" style="background: #4ade80; color: black; padding: 8px 16px;">OldPrices aus API übernehmen</button>
+        <span id="syncStatus" style="margin-left: 10px;"></span>
+        </div>
+
         <form id="priceForm">
             <h2>Neuen Preis hinzufügen / bearbeiten</h2>
             <input type="text" id="produkt_name" placeholder="Produktname" required>
@@ -153,6 +178,37 @@
         loadPreise();
         document.getElementById('priceForm').reset();
     });
+
+    // ========== 🟢 NEU: Sync-Button Funktion ==========
+    document.getElementById('syncBtn').addEventListener('click', async () => {
+        const syncBtn = document.getElementById('syncBtn');
+        const syncStatus = document.getElementById('syncStatus');
+        
+        syncBtn.disabled = true;
+        syncStatus.textContent = '⏳ Sync läuft...';
+        syncStatus.style.color = '#fbbf24';
+        
+        try {
+            const res = await fetch(`${API_URL}/admin/sync-oldprices`, {
+                method: 'POST',
+                headers: { 'Authorization': `Basic ${authToken}` }
+            });
+            const data = await res.json();
+            syncStatus.textContent = `✅ ${data.gespeichert} Preise gespeichert (${data.fehler} Fehler)`;
+            syncStatus.style.color = '#4ade80';
+            loadPreise();  // Tabelle neu laden
+        } catch (err) {
+            syncStatus.textContent = '❌ Fehler beim Sync';
+            syncStatus.style.color = '#fb7185';
+        } finally {
+            syncBtn.disabled = false;
+            setTimeout(() => { 
+                syncStatus.textContent = '';
+                syncStatus.style.color = '';
+            }, 5000);
+        }
+    });
+    // ========== ENDE NEU ==========
 </script>
 </body>
 </html>
