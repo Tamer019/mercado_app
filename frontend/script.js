@@ -313,12 +313,13 @@ async function zeigeWunschliste(pushState = true) {
       const gruppe = document.createElement('div');
       gruppe.className = 'merkliste-gruppe';
       gruppe.innerHTML = `
-        <div class="merkliste-gruppe-header">
+        <div class="merkliste-gruppe-header" onclick="toggleGruppe(this)">
+          <span class="gruppe-arrow">▾</span>
           <span class="merkliste-suche-titel">🔍 ${item.suchbegriff}</span>
           <span class="plz-badge">${item.plz}</span>
-          <button class="merkliste-remove-btn" onclick="entferneVonMerkliste('${item.suchbegriff.replace(/'/g,"\\'")}','${item.plz}',this)">✕ Entfernen</button>
+          <button class="merkliste-remove-btn" onclick="event.stopPropagation(); entferneVonMerkliste('${item.suchbegriff.replace(/'/g,"\\'")}','${item.plz}',this)">✕</button>
         </div>
-        <div class="merkliste-ergebnisse" id="gruppe-${encodeURIComponent(item.suchbegriff)}">
+        <div class="merkliste-ergebnisse">
           <p class="status">⏳</p>
         </div>`;
       inhalt.appendChild(gruppe);
@@ -358,6 +359,13 @@ async function zeigeWunschliste(pushState = true) {
   } catch {
     inhalt.innerHTML = '<p class="status">❌ Fehler beim Laden.</p>';
   }
+}
+
+function toggleGruppe(header) {
+  const gruppe = header.closest('.merkliste-gruppe');
+  gruppe.classList.toggle('collapsed');
+  header.querySelector('.gruppe-arrow').textContent =
+    gruppe.classList.contains('collapsed') ? '▸' : '▾';
 }
 
 async function entferneVonMerkliste(suchbegriff, plz, btn) {
@@ -445,25 +453,23 @@ async function suchen(pushState = true) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   ['suchbegriff', 'plz'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') suchen(); });
   });
 
-  const usernameInput = document.getElementById('username-input');
-  if (usernameInput) {
-    usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') speichereUsername(); });
-  }
+  document.getElementById('username-input')
+    ?.addEventListener('keydown', e => { if (e.key === 'Enter') speichereUsername(); });
 
   if (!getUsername()) {
     document.getElementById('username-modal').style.display = 'flex';
   } else {
-    ladeMerkliste();
+    await ladeMerkliste(); // await so merken-button is correct when results render
   }
 
-  // Restore state from URL on load
-  const params = new URLSearchParams(window.location.search);
+  // Restore state from URL
+  const params   = new URLSearchParams(window.location.search);
   const qParam   = params.get('q');
   const plzParam = params.get('plz');
   const view     = params.get('view');
