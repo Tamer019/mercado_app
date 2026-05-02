@@ -114,7 +114,7 @@ async def startup():
 class WunschlistenItem(BaseModel):
     produkt_name: str
     haendler: str
-    preis: float
+    preis: Optional[float] = None
     alter_preis: Optional[float] = None
     ist_angebot: bool = False
     plz: str = "72555"

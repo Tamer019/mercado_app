@@ -198,9 +198,7 @@ function renderErgebnisse() {
     }
 
     const herzKey = `${angebot.produkt}|${angebot.haendler}`;
-    const herzIcon = herzteItems.has(herzKey) ? '❤️' : '🤍';
-    const p = angebot.produkt.replace(/'/g,"\\'");
-    const h = angebot.haendler.replace(/'/g,"\\'");
+    const geherzt = herzteItems.has(herzKey);
 
     html += `
       <div class="ergebnis-karte">
@@ -215,9 +213,16 @@ function renderErgebnisse() {
           ${preisHtml}
           ${badgeHtml}
         </div>
-        <button class="herz-btn ${herzteItems.has(herzKey) ? 'geherzt' : ''}" data-key="${herzKey}"
-          onclick="toggleHerz('${p}','${h}',${angebot.preis},${angebot.alter_preis??'null'},${angebot.ist_angebot},'${aktuellePlz}','${angebot.einheit??''}','${angebot.gueltig_bis??''}')">
-          ${herzIcon}
+        <button class="herz-btn ${geherzt ? 'geherzt' : ''}"
+          data-key="${herzKey}"
+          data-produkt="${angebot.produkt.replace(/"/g,'&quot;')}"
+          data-haendler="${angebot.haendler.replace(/"/g,'&quot;')}"
+          data-preis="${angebot.preis ?? ''}"
+          data-alter-preis="${angebot.alter_preis ?? ''}"
+          data-ist-angebot="${angebot.ist_angebot}"
+          data-plz="${aktuellePlz}"
+          data-einheit="${angebot.einheit ?? ''}"
+          data-gueltig-bis="${angebot.gueltig_bis ?? ''}">
         </button>
       </div>
     `;
@@ -253,14 +258,14 @@ async function ladeWunschliste() {
   } catch {}
 }
 
-async function toggleHerz(produkt_name, haendler, preis, alter_preis, ist_angebot, plz, einheit, gueltig_bis) {
+async function toggleHerz(btn) {
   const username = getUsername();
   if (!username) { document.getElementById('username-modal').style.display = 'flex'; return; }
 
-  const key = `${produkt_name}|${haendler}`;
+  const { produkt, haendler, preis, alterPreis, istAngebot, plz, einheit, gueltigBis, key } = btn.dataset;
 
   if (herzteItems.has(key)) {
-    await fetch(`${API}/wishlist/${encodeURIComponent(username)}?produkt_name=${encodeURIComponent(produkt_name)}&haendler=${encodeURIComponent(haendler)}`, {
+    await fetch(`${API}/wishlist/${encodeURIComponent(username)}?produkt_name=${encodeURIComponent(produkt)}&haendler=${encodeURIComponent(haendler)}`, {
       method: 'DELETE'
     });
     herzteItems.delete(key);
@@ -268,7 +273,16 @@ async function toggleHerz(produkt_name, haendler, preis, alter_preis, ist_angebo
     await fetch(`${API}/wishlist/${encodeURIComponent(username)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ produkt_name, haendler, preis, alter_preis, ist_angebot, plz, einheit, gueltig_bis })
+      body: JSON.stringify({
+        produkt_name: produkt,
+        haendler,
+        preis:       preis      ? parseFloat(preis)      : null,
+        alter_preis: alterPreis ? parseFloat(alterPreis) : null,
+        ist_angebot: istAngebot === 'true',
+        plz,
+        einheit:     einheit    || '',
+        gueltig_bis: gueltigBis || null,
+      })
     });
     herzteItems.add(key);
   }
@@ -398,4 +412,9 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     ladeWunschliste();
   }
+
+  document.getElementById('ergebnisse').addEventListener('click', e => {
+    const btn = e.target.closest('.herz-btn');
+    if (btn) toggleHerz(btn);
+  });
 });

@@ -335,18 +335,39 @@ button:disabled {
 /* Heart button */
 .herz-btn {
   background: none;
-  border: none;
-  font-size: 20px;
+  border: 1.5px solid rgba(251, 113, 133, 0.5);
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 8px;
-  transition: transform 0.15s ease;
-  box-shadow: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  transition: all 0.15s ease;
+  box-shadow: none;
+  color: #fb7185;
+  font-size: 16px;
+}
+
+.herz-btn::after {
+  content: '♡';
+}
+
+.herz-btn.geherzt {
+  background: rgba(251, 113, 133, 0.15);
+  border-color: #fb7185;
+}
+
+.herz-btn.geherzt::after {
+  content: '♥';
 }
 
 .herz-btn:hover {
-  transform: scale(1.3);
+  background: rgba(251, 113, 133, 0.2);
+  border-color: #fb7185;
+  transform: scale(1.15);
   box-shadow: none;
 }
 
