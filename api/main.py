@@ -43,56 +43,37 @@ async def init_db():
     try:
         conn = await get_connection()
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS angebote (
+                id              SERIAL PRIMARY KEY,
+                produkt_name    VARCHAR(200),
+                beschreibung    TEXT,
+                haendler        VARCHAR(100),
+                preis           FLOAT,
+                alter_preis     FLOAT,
+                einheit         VARCHAR(20),
+                kategorie       VARCHAR(100),
+                gueltig_von     TIMESTAMP,
+                gueltig_bis     TIMESTAMP,
+                plz             VARCHAR(10),
+                gespeichert_am  TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS originalpreise (
                 id              SERIAL PRIMARY KEY,
                 produkt_name    VARCHAR(200) NOT NULL,
                 haendler        VARCHAR(100) NOT NULL,
                 plz             VARCHAR(10) NOT NULL,
                 preis           FLOAT NOT NULL,
-                quelle          VARCHAR(50) DEFAULT 'API',
+                quelle          VARCHAR(50) DEFAULT 'scraper',
                 updated_at      TIMESTAMP DEFAULT NOW(),
                 UNIQUE(produkt_name, haendler, plz)
             )
         """)
-        # ============================================
-        # TESTFALL 1: Admin manuell eingetragener Normalpreis
-        # ============================================
-        await conn.execute("""
-            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-            VALUES ('Bio Hafermilch', 'Mein Dorfladen', '72555', 2.49, 'admin_manuell')
-            ON CONFLICT (produkt_name, haendler, plz) 
-            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'admin_manuell'
-        """)
-        
-        # ============================================
-        # TESTFALL 2: Abgelaufenes Angebot (gescrapt)
-        # ============================================
-        await conn.execute("""
-            INSERT INTO angebote (
-                produkt_name, beschreibung, haendler, preis, alter_preis, 
-                einheit, kategorie, gueltig_von, gueltig_bis, plz
-            ) VALUES (
-                'Vegane Butter', 'Pflanzliche Butter Alternative', 'Supermarkt XY', 
-                2.99, 3.99, '250g', 'Vegane Produkte', 
-                '2026-01-15 00:00:00', '2026-01-30 23:59:59', '72555'
-            )
-            ON CONFLICT (produkt_name, haendler, gueltig_von) DO NOTHING
-        """)
-        
-        # ============================================
-        # TESTFALL 3: Aktuelles Angebot + Originalpreis
-        # ============================================
-        await conn.execute("""
-            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-            VALUES ('Walnusskerne', 'DemoMarkt', '72555', 5.99, 'api_original')
-            ON CONFLICT (produkt_name, haendler, plz) 
-            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_original'
-        """)
-        
         await conn.close()
-        print("✅ Tabelle 'originalpreise' ist bereit")
+        print("✅ DB tables ready")
     except Exception as e:
-        print(f"❌ Fehler bei DB-Initialisierung: {e}")
+        print(f"❌ DB init error: {e}")
 
 # Startup-Event: Läuft einmal beim Start
 @app.on_event("startup")
