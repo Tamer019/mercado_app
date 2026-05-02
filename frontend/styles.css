@@ -327,9 +327,128 @@ button:disabled {
 
 .modal-box input {
   width: 100%;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   text-align: center;
   font-size: 18px;
+}
+
+/* Avatar selection grid */
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.avatar-option {
+  background: rgba(255,255,255,0.05);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 6px;
+  font-size: 22px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: none;
+  line-height: 1;
+}
+
+.avatar-option:hover {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.4);
+  transform: scale(1.15);
+  box-shadow: none;
+}
+
+.avatar-option.ausgewaehlt {
+  background: rgba(74, 222, 128, 0.2);
+  border-color: #4ade80;
+  transform: scale(1.1);
+}
+
+/* Avatar bubble in top bar */
+.avatar-container {
+  position: relative;
+}
+
+.avatar-bubble {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(74, 222, 128, 0.15);
+  border: 2px solid rgba(74, 222, 128, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.avatar-bubble:hover {
+  border-color: #4ade80;
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.avatar-tooltip {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  background: rgba(15, 20, 25, 0.95);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #e0e0e0;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.avatar-container:hover .avatar-tooltip {
+  opacity: 1;
+}
+
+/* Avatar dropdown menu */
+.avatar-menu {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  background: #1a1f2e;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 150px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 50;
+}
+
+.avatar-menu-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4ade80;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(74,222,128,0.2);
+}
+
+.avatar-menu button {
+  width: 100%;
+  background: rgba(239, 68, 68, 0.1);
+  color: #fb7185;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 13px;
+  text-align: left;
+  box-shadow: none;
+}
+
+.avatar-menu button:hover {
+  background: rgba(239, 68, 68, 0.25);
+  transform: none;
+  box-shadow: none;
 }
 
 /* Merken button */

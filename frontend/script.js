@@ -231,13 +231,59 @@ function getUsername() {
   return localStorage.getItem('mercado_username');
 }
 
+let gewaehlterAvatar = '🍎';
+
+function waehleAvatar(btn, emoji) {
+  gewaehlterAvatar = emoji;
+  document.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('ausgewaehlt'));
+  btn.classList.add('ausgewaehlt');
+}
+
 function speichereUsername() {
   const input = document.getElementById('username-input').value.trim();
   if (!input) return;
   localStorage.setItem('mercado_username', input);
+  localStorage.setItem('mercado_avatar', gewaehlterAvatar);
   document.getElementById('username-modal').style.display = 'none';
+  zeigeAvatar();
   ladeMerkliste();
 }
+
+function zeigeAvatar() {
+  const username = getUsername();
+  if (!username) return;
+  const avatar = localStorage.getItem('mercado_avatar') || '🍎';
+  document.getElementById('avatar-bubble').textContent  = avatar;
+  document.getElementById('avatar-tooltip').textContent = username;
+  document.getElementById('avatar-menu-name').textContent = username;
+  document.getElementById('avatar-container').style.display = 'block';
+}
+
+function toggleAvatarMenu() {
+  const menu = document.getElementById('avatar-menu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function ausloggen() {
+  localStorage.removeItem('mercado_username');
+  localStorage.removeItem('mercado_avatar');
+  merklisteItems = new Set();
+  gewaehlterAvatar = '🍎';
+  document.getElementById('avatar-container').style.display = 'none';
+  document.getElementById('avatar-menu').style.display = 'none';
+  document.getElementById('username-input').value = '';
+  document.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('ausgewaehlt'));
+  document.getElementById('username-modal').style.display = 'flex';
+  goHome();
+}
+
+// Close avatar menu when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.avatar-container')) {
+    const menu = document.getElementById('avatar-menu');
+    if (menu) menu.style.display = 'none';
+  }
+});
 
 async function ladeMerkliste() {
   const username = getUsername();
@@ -465,7 +511,8 @@ document.addEventListener('DOMContentLoaded', async function() {
   if (!getUsername()) {
     document.getElementById('username-modal').style.display = 'flex';
   } else {
-    await ladeMerkliste(); // await so merken-button is correct when results render
+    zeigeAvatar();
+    await ladeMerkliste();
   }
 
   // Restore state from URL
