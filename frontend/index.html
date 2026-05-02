@@ -33,6 +33,19 @@
     <div id="ergebnisse"></div>
   </div>
 
+  <!-- History chart section -->
+  <div id="verlauf-section" style="display:none;">
+    <div class="verlauf-header">
+      <span id="verlauf-titel"></span>
+      <button id="verlauf-close" onclick="schliesseVerlauf()">✕</button>
+    </div>
+    <div class="verlauf-chart-box">
+      <canvas id="verlaufChart"></canvas>
+    </div>
+    <p id="verlauf-status" class="status"></p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

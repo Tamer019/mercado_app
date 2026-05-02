@@ -252,6 +252,42 @@ async def delete_originalpreis(id: int, auth: bool = Depends(verify_admin)):
     return {"message": "Preis gelöscht"}
 
 
+@app.get("/history")
+async def verlauf(q: str, plz: str = "72555"):
+    conn = await get_connection()
+    rows = await conn.fetch("""
+        SELECT haendler, preis, alter_preis, gueltig_von
+        FROM angebote
+        WHERE produkt_name ILIKE $1 AND plz = $2
+        ORDER BY haendler, gueltig_von
+    """, f"%{q}%", plz)
+    await conn.close()
+
+    haendler_map = {}
+    for row in rows:
+        h = row["haendler"]
+        if h not in haendler_map:
+            haendler_map[h] = []
+        haendler_map[h].append({
+            "datum": row["gueltig_von"].isoformat() if row["gueltig_von"] else None,
+            "preis": row["preis"],
+            "alter_preis": row["alter_preis"],
+        })
+
+    return JSONResponse(
+        content={
+            "suche": q,
+            "plz": plz,
+            "anzahl_eintraege": len(rows),
+            "verlauf": [
+                {"haendler": h, "eintraege": e}
+                for h, e in haendler_map.items()
+            ],
+        },
+        media_type="application/json; charset=utf-8",
+    )
+
+
 @app.post("/admin/sync-oldprices")
 async def sync_oldprices(auth: bool = Depends(verify_admin)):
     # Produkte aus deinem scraper/main.py

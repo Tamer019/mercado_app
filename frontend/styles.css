@@ -257,3 +257,65 @@ button:disabled {
   color: #60a5fa;
   text-shadow: none;
 }
+
+/* History chart */
+#verlauf-section {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+.verlauf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+#verlauf-close {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 14px;
+  box-shadow: none;
+}
+
+#verlauf-close:hover {
+  background: rgba(239, 68, 68, 0.3);
+  transform: none;
+  box-shadow: none;
+}
+
+.verlauf-chart-box {
+  position: relative;
+  height: 280px;
+}
+
+.verlauf-btn {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  box-shadow: none;
+  transition: all 0.2s ease;
+}
+
+.verlauf-btn:hover {
+  background: rgba(74, 222, 128, 0.25);
+  transform: none;
+  box-shadow: none;
+}
