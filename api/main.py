@@ -27,6 +27,13 @@ HEADERS = {
 
 ERLAUBTE_HAENDLER = ["aldi", "lidl", "rewe", "edeka"]
 
+SYNC_KATEGORIEN = [
+    "obst", "gemüse", "fleisch", "wurst", "fisch",
+    "milch", "käse", "joghurt", "eier", "butter",
+    "brot", "getränke", "saft", "snacks", "tiefkühl",
+    "öl", "reis", "nudeln", "konserven", "süßigkeiten",
+]
+
 def haendler_erlaubt(name: str) -> bool:
     name_lower = name.lower()
     return any(h in name_lower for h in ERLAUBTE_HAENDLER)
@@ -278,55 +285,52 @@ async def verlauf(q: str, plz: str = "72555"):
 @app.post("/admin/sync-oldprices")
 async def sync_oldprices(auth: bool = Depends(verify_admin)):
     PLZ = "72555"
-    LIMIT = 50
-    offset = 0
     gespeichert = 0
     fehler = 0
-    seiten = 0
 
     conn = await get_connection()
     try:
-        while True:
-            response = requests.get(MARKTGURU_URL, params={
-                "as": "web",
-                "limit": LIMIT,
-                "offset": offset,
-                "q": "",
-                "zipCode": PLZ
-            }, headers=HEADERS)
+        for kategorie in SYNC_KATEGORIEN:
+            offset = 0
+            while True:
+                response = requests.get(MARKTGURU_URL, params={
+                    "as": "web",
+                    "limit": 50,
+                    "offset": offset,
+                    "q": kategorie,
+                    "zipCode": PLZ
+                }, headers=HEADERS)
 
-            angebote = response.json().get("results", [])
-            seiten += 1
+                angebote = response.json().get("results") or []
 
-            for angebot in angebote:
-                haendler    = angebot.get("advertisers", [{}])[0].get("name", "")
-                alter_preis = angebot.get("oldPrice")
-                produkt_name = angebot.get("product", {}).get("name", "")
+                for angebot in angebote:
+                    haendler     = angebot.get("advertisers", [{}])[0].get("name", "")
+                    alter_preis  = angebot.get("oldPrice")
+                    produkt_name = angebot.get("product", {}).get("name", "")
 
-                if not (haendler_erlaubt(haendler) and alter_preis and alter_preis > 0 and produkt_name):
-                    continue
+                    if not (haendler_erlaubt(haendler) and alter_preis and alter_preis > 0 and produkt_name):
+                        continue
+                    try:
+                        await conn.execute("""
+                            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+                            VALUES ($1, $2, $3, $4, 'api_sync')
+                            ON CONFLICT (produkt_name, haendler, plz)
+                            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_sync', updated_at = NOW()
+                        """, produkt_name, haendler, PLZ, alter_preis)
+                        gespeichert += 1
+                    except Exception as e:
+                        fehler += 1
+                        print(f"DB Fehler: {e}")
 
-                try:
-                    await conn.execute("""
-                        INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-                        VALUES ($1, $2, $3, $4, 'api_sync')
-                        ON CONFLICT (produkt_name, haendler, plz)
-                        DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_sync', updated_at = NOW()
-                    """, produkt_name, haendler, PLZ, alter_preis)
-                    gespeichert += 1
-                except Exception as e:
-                    fehler += 1
-                    print(f"DB Fehler: {e}")
-
-            if len(angebote) < LIMIT:
-                break
-            offset += LIMIT
+                if len(angebote) < 50:
+                    break
+                offset += 50
     finally:
         await conn.close()
 
     return {
         "message": "Sync abgeschlossen",
-        "seiten": seiten,
+        "kategorien": len(SYNC_KATEGORIEN),
         "gespeichert": gespeichert,
         "fehler": fehler,
     }
