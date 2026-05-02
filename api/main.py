@@ -277,49 +277,56 @@ async def verlauf(q: str, plz: str = "72555"):
 
 @app.post("/admin/sync-oldprices")
 async def sync_oldprices(auth: bool = Depends(verify_admin)):
-    # Produkte aus deinem scraper/main.py 
-    PRODUKTE = ["walnuss", "mandel", "eier", "milch", "gurke", "tomate", "mango"]
     PLZ = "72555"
-    
+    LIMIT = 50
+    offset = 0
     gespeichert = 0
     fehler = 0
-    
-    for produkt in PRODUKTE:
-        try:
-            # API-Aufruf für jedes Produkt
+    seiten = 0
+
+    conn = await get_connection()
+    try:
+        while True:
             response = requests.get(MARKTGURU_URL, params={
                 "as": "web",
-                "limit": 50,
-                "offset": 0,
-                "q": produkt,
+                "limit": LIMIT,
+                "offset": offset,
+                "q": "",
                 "zipCode": PLZ
             }, headers=HEADERS)
-            
-            daten = response.json()
-            angebote = daten.get("results", [])
-            
-            for angebot in angebote:
-                alter_preis = angebot.get("oldPrice")
-                if alter_preis and alter_preis > 0:
-                    produkt_name = angebot.get("product", {}).get("name", "")
-                    haendler = angebot.get("advertisers", [{}])[0].get("name", "")
 
-                    if produkt_name and haendler and haendler_erlaubt(haendler):
-                        conn = await get_connection()
-                        await conn.execute("""
-                            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-                            VALUES ($1, $2, $3, $4, 'api_sync')
-                            ON CONFLICT (produkt_name, haendler, plz)
-                            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_sync', updated_at = NOW()
-                        """, produkt_name, haendler, PLZ, alter_preis)
-                        await conn.close()
-                        gespeichert += 1
-        except Exception as e:
-            fehler += 1
-            print(f"Fehler bei {produkt}: {e}")
-    
+            angebote = response.json().get("results", [])
+            seiten += 1
+
+            for angebot in angebote:
+                haendler    = angebot.get("advertisers", [{}])[0].get("name", "")
+                alter_preis = angebot.get("oldPrice")
+                produkt_name = angebot.get("product", {}).get("name", "")
+
+                if not (haendler_erlaubt(haendler) and alter_preis and alter_preis > 0 and produkt_name):
+                    continue
+
+                try:
+                    await conn.execute("""
+                        INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+                        VALUES ($1, $2, $3, $4, 'api_sync')
+                        ON CONFLICT (produkt_name, haendler, plz)
+                        DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_sync', updated_at = NOW()
+                    """, produkt_name, haendler, PLZ, alter_preis)
+                    gespeichert += 1
+                except Exception as e:
+                    fehler += 1
+                    print(f"DB Fehler: {e}")
+
+            if len(angebote) < LIMIT:
+                break
+            offset += LIMIT
+    finally:
+        await conn.close()
+
     return {
         "message": "Sync abgeschlossen",
+        "seiten": seiten,
         "gespeichert": gespeichert,
-        "fehler": fehler
+        "fehler": fehler,
     }
