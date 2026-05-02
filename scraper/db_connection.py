@@ -1,11 +1,13 @@
+import os
 import psycopg2
 
-DB_CONFIG = {
-    "host": "localhost",
-    "port": 5433,
-    "database": "mercadoDB",
-    "user": "tamer"
-}
-
 def get_connection():
-    return psycopg2.connect(**DB_CONFIG)
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        return psycopg2.connect(database_url)
+    return psycopg2.connect(
+        host="localhost",
+        port=5433,
+        database="mercadoDB",
+        user="tamer"
+    )
