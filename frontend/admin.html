@@ -91,6 +91,10 @@
         </form>
 
         <h2>Vorhandene Preise</h2>
+        <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="searchInput" placeholder="Suche nach Produkt, Händler oder PLZ..." oninput="filterTable()" style="flex:1; min-width: 200px;">
+            <span id="searchCount" style="color: #94a3b8; font-size: 14px; white-space: nowrap;"></span>
+        </div>
         <table id="preiseTable">
             <thead>
                 <tr><th>ID</th><th>Produkt</th><th>Händler</th><th>PLZ</th><th>Preis</th><th>Quelle</th><th>Aktion</th></tr>
@@ -151,6 +155,20 @@
             deleteBtn.onclick = () => deletePreis(p.id);
             deleteCell.appendChild(deleteBtn);
         });
+        filterTable();
+    }
+
+    function filterTable() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#preiseTable tbody tr');
+        let visible = 0;
+        rows.forEach(row => {
+            const match = row.innerText.toLowerCase().includes(term);
+            row.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        const countEl = document.getElementById('searchCount');
+        countEl.textContent = term ? `${visible} von ${rows.length} Einträgen` : `${rows.length} Einträge`;
     }
 
     async function deletePreis(id) {
