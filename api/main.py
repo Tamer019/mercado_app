@@ -25,6 +25,12 @@ HEADERS = {
     "x-apikey": "8Kk+pmbf7TgJ9nVj2cXeA7P5zBGv8iuutVVMRfOfvNE="
 }
 
+ERLAUBTE_HAENDLER = ["aldi", "lidl", "rewe", "edeka"]
+
+def haendler_erlaubt(name: str) -> bool:
+    name_lower = name.lower()
+    return any(h in name_lower for h in ERLAUBTE_HAENDLER)
+
 # Admin Auth (Hardcoded für den Anfang)
 security = HTTPBasic()
 ADMIN_USERNAME = "admin"
@@ -108,7 +114,7 @@ async def suche(q: str, plz: str = "70178"):
     haendler_mit_angebot = {}
     for angebot in api_angebote:
         haendler = angebot.get("advertisers", [{}])[0].get("name", "")
-        if haendler:
+        if haendler and haendler_erlaubt(haendler):
             haendler_mit_angebot[haendler] = {
                 "produkt": angebot.get("product", {}).get("name", ""),
                 "beschreibung": angebot.get("description", ""),
@@ -271,7 +277,7 @@ async def verlauf(q: str, plz: str = "72555"):
 
 @app.post("/admin/sync-oldprices")
 async def sync_oldprices(auth: bool = Depends(verify_admin)):
-    # Produkte aus deinem scraper/main.py
+    # Produkte aus deinem scraper/main.py 
     PRODUKTE = ["walnuss", "mandel", "eier", "milch", "gurke", "tomate", "mango"]
     PLZ = "72555"
     
@@ -297,8 +303,8 @@ async def sync_oldprices(auth: bool = Depends(verify_admin)):
                 if alter_preis and alter_preis > 0:
                     produkt_name = angebot.get("product", {}).get("name", "")
                     haendler = angebot.get("advertisers", [{}])[0].get("name", "")
-                    
-                    if produkt_name and haendler:
+
+                    if produkt_name and haendler and haendler_erlaubt(haendler):
                         conn = await get_connection()
                         await conn.execute("""
                             INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
