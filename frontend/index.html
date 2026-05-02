@@ -7,36 +7,47 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <h1>🛒 Supermarkt Preisvergleich</h1>
 
-    <!-- Das ist die Suchbox -->
+  <!-- Username Modal -->
+  <div id="username-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <h2>👋 Willkommen!</h2>
+      <p>Gib deinen Namen ein, damit wir deine Wunschliste speichern können.</p>
+      <input type="text" id="username-input" placeholder="Dein Name" maxlength="50" />
+      <button onclick="speichereUsername()">Loslegen</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="top-bar">
+      <h1>🛒 Supermarkt Preisvergleich</h1>
+      <button class="wishlist-nav-btn" onclick="zeigeWunschliste()" id="wishlist-nav-btn">❤️ Wunschliste</button>
+    </div>
+
+    <!-- Suchbox -->
     <div class="suchbox">
-      <input
-        type="text"
-        id="suchbegriff"
-        placeholder="Produkt eingeben, z.B. Mango"
-        onkeydown="if(event.key==='Enter') suchen()"
-      />
-      <input
-        type="text"
-        id="plz"
-        placeholder="PLZ"
-        value="72555"
-        style="max-width: 100px;"
-        onkeydown="if(event.key==='Enter') suchen()"
-      />
+      <input type="text" id="suchbegriff" placeholder="Produkt eingeben, z.B. Mango" />
+      <input type="text" id="plz" placeholder="PLZ" value="72555" style="max-width: 100px;" />
       <button onclick="suchen()" id="such-button">Suchen</button>
     </div>
 
-    <!-- Filter bar (erscheint nach der Suche) -->
+    <!-- Filter bar -->
     <div id="filter-bar" style="display:none;"></div>
 
-    <!-- Hier erscheinen die Ergebnisse -->
+    <!-- Suchergebnisse -->
     <div id="ergebnisse"></div>
+
+    <!-- Wunschliste -->
+    <div id="wunschliste-section" style="display:none;">
+      <div class="verlauf-header">
+        <span>❤️ Wunschliste von <span id="wunschliste-username"></span></span>
+        <button id="verlauf-close" onclick="schliesseWunschliste()">✕</button>
+      </div>
+      <div id="wunschliste-inhalt"></div>
+    </div>
   </div>
 
-  <!-- History chart section -->
+  <!-- Preisverlauf -->
   <div id="verlauf-section" style="display:none;">
     <div class="verlauf-header">
       <span id="verlauf-titel"></span>

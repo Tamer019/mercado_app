@@ -31,7 +31,7 @@ async function zeigeVerlauf(q, plz) {
   if (aktuellerChart) { aktuellerChart.destroy(); aktuellerChart = null; }
 
   try {
-    const antwort = await fetch(`https://mercado-app019.onrender.com/history?q=${encodeURIComponent(q)}&plz=${plz}`);
+    const antwort = await fetch(`${API}/history?q=${encodeURIComponent(q)}&plz=${plz}`);
     const daten   = await antwort.json();
 
     if (daten.anzahl_eintraege === 0) {
@@ -197,6 +197,11 @@ function renderErgebnisse() {
       preisHtml = `<div class="preis normal">${angebot.preis.toFixed(2)}€</div>`;
     }
 
+    const herzKey = `${angebot.produkt}|${angebot.haendler}`;
+    const herzIcon = herzteItems.has(herzKey) ? '❤️' : '🤍';
+    const p = angebot.produkt.replace(/'/g,"\\'");
+    const h = angebot.haendler.replace(/'/g,"\\'");
+
     html += `
       <div class="ergebnis-karte">
         <div class="haendler ${haendlerKlasse}">${angebot.haendler}</div>
@@ -210,11 +215,125 @@ function renderErgebnisse() {
           ${preisHtml}
           ${badgeHtml}
         </div>
+        <button class="herz-btn ${herzteItems.has(herzKey) ? 'geherzt' : ''}" data-key="${herzKey}"
+          onclick="toggleHerz('${p}','${h}',${angebot.preis},${angebot.alter_preis??'null'},${angebot.ist_angebot},'${aktuellePlz}','${angebot.einheit??''}','${angebot.gueltig_bis??''}')">
+          ${herzIcon}
+        </button>
       </div>
     `;
   });
 
   document.getElementById('ergebnisse').innerHTML = html;
+}
+
+// ── Wishlist ──────────────────────────────────────────────────────────────────
+const API = 'https://mercado-app019.onrender.com';
+let herzteItems = new Set(); // "produkt_name|haendler"
+
+function getUsername() {
+  return localStorage.getItem('mercado_username');
+}
+
+function speichereUsername() {
+  const input = document.getElementById('username-input').value.trim();
+  if (!input) return;
+  localStorage.setItem('mercado_username', input);
+  document.getElementById('username-modal').style.display = 'none';
+  ladeWunschliste();
+}
+
+async function ladeWunschliste() {
+  const username = getUsername();
+  if (!username) return;
+  try {
+    const res = await fetch(`${API}/wishlist/${encodeURIComponent(username)}`);
+    const items = await res.json();
+    herzteItems = new Set(items.map(i => `${i.produkt_name}|${i.haendler}`));
+    aktualisiereHerzButtons();
+  } catch {}
+}
+
+async function toggleHerz(produkt_name, haendler, preis, alter_preis, ist_angebot, plz, einheit, gueltig_bis) {
+  const username = getUsername();
+  if (!username) { document.getElementById('username-modal').style.display = 'flex'; return; }
+
+  const key = `${produkt_name}|${haendler}`;
+
+  if (herzteItems.has(key)) {
+    await fetch(`${API}/wishlist/${encodeURIComponent(username)}?produkt_name=${encodeURIComponent(produkt_name)}&haendler=${encodeURIComponent(haendler)}`, {
+      method: 'DELETE'
+    });
+    herzteItems.delete(key);
+  } else {
+    await fetch(`${API}/wishlist/${encodeURIComponent(username)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ produkt_name, haendler, preis, alter_preis, ist_angebot, plz, einheit, gueltig_bis })
+    });
+    herzteItems.add(key);
+  }
+  aktualisiereHerzButtons();
+}
+
+function aktualisiereHerzButtons() {
+  document.querySelectorAll('.herz-btn').forEach(btn => {
+    const key = btn.dataset.key;
+    btn.textContent = herzteItems.has(key) ? '❤️' : '🤍';
+    btn.classList.toggle('geherzt', herzteItems.has(key));
+  });
+}
+
+async function zeigeWunschliste() {
+  const username = getUsername();
+  if (!username) { document.getElementById('username-modal').style.display = 'flex'; return; }
+
+  const section = document.getElementById('wunschliste-section');
+  document.getElementById('wunschliste-username').textContent = username;
+  section.style.display = 'block';
+  section.scrollIntoView({ behavior: 'smooth' });
+
+  try {
+    const res = await fetch(`${API}/wishlist/${encodeURIComponent(username)}`);
+    const items = await res.json();
+
+    if (items.length === 0) {
+      document.getElementById('wunschliste-inhalt').innerHTML = '<p class="status">Noch keine Artikel gespeichert. Klick auf 🤍 bei einem Suchergebnis.</p>';
+      return;
+    }
+
+    let html = '';
+    items.forEach(item => {
+      const bisDatum = item.gueltig_bis ? new Date(item.gueltig_bis).toLocaleDateString('de-DE') : '';
+      const badge = item.ist_angebot
+        ? '<span class="angebot-badge">🔥 Angebot</span>'
+        : '<span class="normalpreis-badge">💰 Normalpreis</span>';
+      const preisZeile = item.alter_preis
+        ? `<div class="preis">${item.preis?.toFixed(2)}€ <span class="statt-preis">statt ${item.alter_preis.toFixed(2)}€</span></div>`
+        : `<div class="preis ${item.ist_angebot ? '' : 'normal'}">${item.preis?.toFixed(2)}€</div>`;
+
+      html += `
+        <div class="ergebnis-karte">
+          <div class="haendler haendler-${item.haendler.toLowerCase().replace(/\s+/g,'')}">${item.haendler}</div>
+          <div class="produkt-info">
+            <div class="produkt-name">${item.produkt_name}</div>
+            ${bisDatum ? `<div class="gueltigkeit">📅 gültig bis ${bisDatum}</div>` : ''}
+          </div>
+          <div class="preis-bereich">
+            ${preisZeile}
+            ${badge}
+          </div>
+          <button class="herz-btn geherzt" data-key="${item.produkt_name}|${item.haendler}"
+            onclick="toggleHerz('${item.produkt_name.replace(/'/g,"\\'")}','${item.haendler.replace(/'/g,"\\'")}',${item.preis},${item.alter_preis??'null'},${item.ist_angebot},'${item.plz}','${item.einheit??''}','${item.gueltig_bis??''}'); this.closest('.ergebnis-karte').remove();">❤️</button>
+        </div>`;
+    });
+    document.getElementById('wunschliste-inhalt').innerHTML = html;
+  } catch {
+    document.getElementById('wunschliste-inhalt').innerHTML = '<p class="status">❌ Fehler beim Laden.</p>';
+  }
+}
+
+function schliesseWunschliste() {
+  document.getElementById('wunschliste-section').style.display = 'none';
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -236,7 +355,7 @@ async function suchen() {
   schliesseVerlauf();
 
   try {
-    const antwort = await fetch(`https://mercado-app019.onrender.com/search?q=${encodeURIComponent(suchbegriff)}&plz=${plz}`);
+    const antwort = await fetch(`${API}/search?q=${encodeURIComponent(suchbegriff)}&plz=${plz}`);
     const daten   = await antwort.json();
 
     if (daten.anzahl === 0) {
@@ -262,10 +381,21 @@ async function suchen() {
   }
 }
 
-// ── Enter key ─────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   ['suchbegriff', 'plz'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') suchen(); });
   });
+
+  const usernameInput = document.getElementById('username-input');
+  if (usernameInput) {
+    usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') speichereUsername(); });
+  }
+
+  if (!getUsername()) {
+    document.getElementById('username-modal').style.display = 'flex';
+  } else {
+    ladeWunschliste();
+  }
 });

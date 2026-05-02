@@ -1,12 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import requests
-from .db_connection import get_connection
-# admin api
-from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from pydantic import BaseModel
+from typing import Optional
+import requests
 import secrets
+from .db_connection import get_connection
 
 app = FastAPI()
 
@@ -83,6 +83,22 @@ async def init_db():
                 UNIQUE(produkt_name, haendler, plz)
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS wunschliste (
+                id              SERIAL PRIMARY KEY,
+                username        VARCHAR(100) NOT NULL,
+                produkt_name    VARCHAR(200) NOT NULL,
+                haendler        VARCHAR(100) NOT NULL,
+                preis           FLOAT,
+                alter_preis     FLOAT,
+                ist_angebot     BOOLEAN DEFAULT FALSE,
+                plz             VARCHAR(10),
+                einheit         VARCHAR(20),
+                gueltig_bis     TIMESTAMP,
+                gespeichert_am  TIMESTAMP DEFAULT NOW(),
+                UNIQUE(username, produkt_name, haendler)
+            )
+        """)
         await conn.close()
         print("✅ DB tables ready")
     except Exception as e:
@@ -92,6 +108,67 @@ async def init_db():
 @app.on_event("startup")
 async def startup():
     await init_db()
+
+# ========== WISHLIST ENDPOINTS ==========
+
+class WunschlistenItem(BaseModel):
+    produkt_name: str
+    haendler: str
+    preis: float
+    alter_preis: Optional[float] = None
+    ist_angebot: bool = False
+    plz: str = "72555"
+    einheit: str = ""
+    gueltig_bis: Optional[str] = None
+
+@app.get("/wishlist/{username}")
+async def get_wishlist(username: str):
+    conn = await get_connection()
+    rows = await conn.fetch("""
+        SELECT id, produkt_name, haendler, preis, alter_preis, ist_angebot,
+               plz, einheit, gueltig_bis, gespeichert_am
+        FROM wunschliste
+        WHERE username = $1
+        ORDER BY gespeichert_am DESC
+    """, username)
+    await conn.close()
+    return [dict(r) for r in rows]
+
+@app.post("/wishlist/{username}")
+async def add_to_wishlist(username: str, item: WunschlistenItem):
+    gueltig_bis = None
+    if item.gueltig_bis:
+        from datetime import datetime
+        try:
+            gueltig_bis = datetime.fromisoformat(item.gueltig_bis.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+
+    conn = await get_connection()
+    await conn.execute("""
+        INSERT INTO wunschliste
+            (username, produkt_name, haendler, preis, alter_preis,
+             ist_angebot, plz, einheit, gueltig_bis)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+        ON CONFLICT (username, produkt_name, haendler) DO NOTHING
+    """, username, item.produkt_name, item.haendler, item.preis,
+         item.alter_preis, item.ist_angebot, item.plz, item.einheit, gueltig_bis)
+    await conn.close()
+    return {"message": "Gespeichert"}
+
+@app.delete("/wishlist/{username}")
+async def remove_from_wishlist(
+    username: str,
+    produkt_name: str = Query(...),
+    haendler: str = Query(...)
+):
+    conn = await get_connection()
+    await conn.execute("""
+        DELETE FROM wunschliste
+        WHERE username = $1 AND produkt_name = $2 AND haendler = $3
+    """, username, produkt_name, haendler)
+    await conn.close()
+    return {"message": "Entfernt"}
 
 # ========== PUBLIC ENDPOINTS ==========
 @app.get("/")
