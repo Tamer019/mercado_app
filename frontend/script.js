@@ -263,43 +263,54 @@ async function toggleHerz(btn) {
   if (!username) { document.getElementById('username-modal').style.display = 'flex'; return; }
 
   const { produkt, haendler, preis, alterPreis, istAngebot, plz, einheit, gueltigBis, key } = btn.dataset;
+  const wasGeherzt = herzteItems.has(key);
 
-  if (herzteItems.has(key)) {
-    await fetch(`${API}/wishlist/${encodeURIComponent(username)}?produkt_name=${encodeURIComponent(produkt)}&haendler=${encodeURIComponent(haendler)}`, {
-      method: 'DELETE'
-    });
-    herzteItems.delete(key);
-  } else {
-    await fetch(`${API}/wishlist/${encodeURIComponent(username)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        produkt_name: produkt,
-        haendler,
-        preis:       preis      ? parseFloat(preis)      : null,
-        alter_preis: alterPreis ? parseFloat(alterPreis) : null,
-        ist_angebot: istAngebot === 'true',
-        plz,
-        einheit:     einheit    || '',
-        gueltig_bis: gueltigBis || null,
-      })
-    });
-    herzteItems.add(key);
-  }
+  // Optimistic update — fill immediately
+  if (wasGeherzt) herzteItems.delete(key); else herzteItems.add(key);
   aktualisiereHerzButtons();
+
+  try {
+    let res;
+    if (wasGeherzt) {
+      res = await fetch(
+        `${API}/wishlist/${encodeURIComponent(username)}?produkt_name=${encodeURIComponent(produkt)}&haendler=${encodeURIComponent(haendler)}`,
+        { method: 'DELETE' }
+      );
+    } else {
+      res = await fetch(`${API}/wishlist/${encodeURIComponent(username)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          produkt_name: produkt,
+          haendler,
+          preis:       preis      ? parseFloat(preis)      : null,
+          alter_preis: alterPreis ? parseFloat(alterPreis) : null,
+          ist_angebot: istAngebot === 'true',
+          plz,
+          einheit:     einheit    || '',
+          gueltig_bis: gueltigBis || null,
+        })
+      });
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  } catch {
+    // Revert on failure
+    if (wasGeherzt) herzteItems.add(key); else herzteItems.delete(key);
+    aktualisiereHerzButtons();
+  }
 }
 
 function aktualisiereHerzButtons() {
   document.querySelectorAll('.herz-btn').forEach(btn => {
-    const key = btn.dataset.key;
-    btn.textContent = herzteItems.has(key) ? '❤️' : '🤍';
-    btn.classList.toggle('geherzt', herzteItems.has(key));
+    btn.classList.toggle('geherzt', herzteItems.has(btn.dataset.key));
   });
 }
 
-async function zeigeWunschliste() {
+async function zeigeWunschliste(pushState = true) {
   const username = getUsername();
   if (!username) { document.getElementById('username-modal').style.display = 'flex'; return; }
+
+  if (pushState) updateURL({ view: 'wishlist' });
 
   const section = document.getElementById('wunschliste-section');
   document.getElementById('wunschliste-username').textContent = username;
@@ -336,8 +347,17 @@ async function zeigeWunschliste() {
             ${preisZeile}
             ${badge}
           </div>
-          <button class="herz-btn geherzt" data-key="${item.produkt_name}|${item.haendler}"
-            onclick="toggleHerz('${item.produkt_name.replace(/'/g,"\\'")}','${item.haendler.replace(/'/g,"\\'")}',${item.preis},${item.alter_preis??'null'},${item.ist_angebot},'${item.plz}','${item.einheit??''}','${item.gueltig_bis??''}'); this.closest('.ergebnis-karte').remove();">❤️</button>
+          <button class="herz-btn geherzt wunschliste-herz"
+            data-key="${item.produkt_name}|${item.haendler}"
+            data-produkt="${item.produkt_name.replace(/"/g,'&quot;')}"
+            data-haendler="${item.haendler.replace(/"/g,'&quot;')}"
+            data-preis="${item.preis ?? ''}"
+            data-alter-preis="${item.alter_preis ?? ''}"
+            data-ist-angebot="${item.ist_angebot}"
+            data-plz="${item.plz ?? ''}"
+            data-einheit="${item.einheit ?? ''}"
+            data-gueltig-bis="${item.gueltig_bis ?? ''}">
+          </button>
         </div>`;
     });
     document.getElementById('wunschliste-inhalt').innerHTML = html;
@@ -348,10 +368,35 @@ async function zeigeWunschliste() {
 
 function schliesseWunschliste() {
   document.getElementById('wunschliste-section').style.display = 'none';
+  // Restore previous URL state
+  if (aktuellerSuchbegriff) {
+    updateURL({ q: aktuellerSuchbegriff, plz: aktuellePlz });
+  } else {
+    history.pushState({}, '', window.location.pathname);
+  }
+}
+
+// ── URL state ─────────────────────────────────────────────────────────────────
+function updateURL(params) {
+  const url = new URL(window.location.href);
+  url.search = '';
+  Object.entries(params).forEach(([k, v]) => { if (v) url.searchParams.set(k, v); });
+  history.pushState(params, '', url);
+}
+
+function goHome() {
+  history.pushState({}, '', window.location.pathname);
+  document.getElementById('ergebnisse').innerHTML = '';
+  document.getElementById('filter-bar').style.display = 'none';
+  document.getElementById('wunschliste-section').style.display = 'none';
+  document.getElementById('suchbegriff').value = '';
+  schliesseVerlauf();
+  alleErgebnisse = [];
+  aktuellerSuchbegriff = '';
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
-async function suchen() {
+async function suchen(pushState = true) {
   const suchbegriff    = document.getElementById('suchbegriff').value.trim();
   const plz            = document.getElementById('plz').value.trim();
   const ergebnisseDiv  = document.getElementById('ergebnisse');
@@ -384,6 +429,7 @@ async function suchen() {
     aktiveKategorie      = null;
     nurAngebote          = false;
 
+    if (pushState) updateURL({ q: suchbegriff, plz });
     zeigeFilterBar();
     renderErgebnisse();
 
@@ -413,8 +459,52 @@ document.addEventListener('DOMContentLoaded', function() {
     ladeWunschliste();
   }
 
+  // Heart buttons in search results
   document.getElementById('ergebnisse').addEventListener('click', e => {
     const btn = e.target.closest('.herz-btn');
     if (btn) toggleHerz(btn);
+  });
+
+  // Heart buttons in wishlist (remove item on click)
+  document.getElementById('wunschliste-inhalt').addEventListener('click', async e => {
+    const btn = e.target.closest('.wunschliste-herz');
+    if (!btn) return;
+    await toggleHerz(btn);
+    btn.closest('.ergebnis-karte').remove();
+  });
+
+  // Restore state from URL on load
+  const params = new URLSearchParams(window.location.search);
+  const qParam   = params.get('q');
+  const plzParam = params.get('plz');
+  const view     = params.get('view');
+
+  if (view === 'wishlist') {
+    zeigeWunschliste(false);
+  } else if (qParam) {
+    document.getElementById('suchbegriff').value = qParam;
+    if (plzParam) document.getElementById('plz').value = plzParam;
+    suchen(false);
+  }
+
+  // Browser back/forward
+  window.addEventListener('popstate', async () => {
+    const p    = new URLSearchParams(window.location.search);
+    const q    = p.get('q');
+    const view = p.get('view');
+    if (view === 'wishlist') {
+      zeigeWunschliste(false);
+    } else if (q) {
+      document.getElementById('suchbegriff').value = q;
+      document.getElementById('plz').value = p.get('plz') || '72555';
+      suchen(false);
+    } else {
+      document.getElementById('ergebnisse').innerHTML = '';
+      document.getElementById('filter-bar').style.display = 'none';
+      document.getElementById('wunschliste-section').style.display = 'none';
+      schliesseVerlauf();
+      alleErgebnisse = [];
+      aktuellerSuchbegriff = '';
+    }
   });
 });
