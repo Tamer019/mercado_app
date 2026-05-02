@@ -158,10 +158,16 @@ function renderErgebnisse() {
   const shown = gefiltert.length;
   const filterAktiv = aktiverHaendler || aktiveKategorie || nurAngebote;
 
+  const gemerkt = merklisteItems.has(`${aktuellerSuchbegriff}|${aktuellePlz}`);
   let html = `
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
       <p class="status" style="margin:0;">${filterAktiv ? `${shown} von ${total}` : total} Ergebnisse</p>
-      <button class="verlauf-btn" onclick="zeigeVerlauf('${aktuellerSuchbegriff.replace(/'/g, "\\'")}', '${aktuellePlz}')">📈 Preisverlauf</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="merken-btn" class="merken-btn ${gemerkt ? 'gemerkt' : ''}" onclick="toggleMerken()">
+          ${gemerkt ? '🔖 Gemerkt' : '🔖 Merken'}
+        </button>
+        <button class="verlauf-btn" onclick="zeigeVerlauf('${aktuellerSuchbegriff.replace(/'/g, "\\'")}', '${aktuellePlz}')">📈 Preisverlauf</button>
+      </div>
     </div>
   `;
 
@@ -197,9 +203,6 @@ function renderErgebnisse() {
       preisHtml = `<div class="preis normal">${angebot.preis.toFixed(2)}€</div>`;
     }
 
-    const herzKey = `${angebot.produkt}|${angebot.haendler}`;
-    const geherzt = herzteItems.has(herzKey);
-
     html += `
       <div class="ergebnis-karte">
         <div class="haendler ${haendlerKlasse}">${angebot.haendler}</div>
@@ -213,17 +216,6 @@ function renderErgebnisse() {
           ${preisHtml}
           ${badgeHtml}
         </div>
-        <button class="herz-btn ${geherzt ? 'geherzt' : ''}"
-          data-key="${herzKey}"
-          data-produkt="${angebot.produkt.replace(/"/g,'&quot;')}"
-          data-haendler="${angebot.haendler.replace(/"/g,'&quot;')}"
-          data-preis="${angebot.preis ?? ''}"
-          data-alter-preis="${angebot.alter_preis ?? ''}"
-          data-ist-angebot="${angebot.ist_angebot}"
-          data-plz="${aktuellePlz}"
-          data-einheit="${angebot.einheit ?? ''}"
-          data-gueltig-bis="${angebot.gueltig_bis ?? ''}">
-        </button>
       </div>
     `;
   });
@@ -231,9 +223,9 @@ function renderErgebnisse() {
   document.getElementById('ergebnisse').innerHTML = html;
 }
 
-// ── Wishlist ──────────────────────────────────────────────────────────────────
+// ── Merkliste ─────────────────────────────────────────────────────────────────
 const API = 'https://mercado-app019.onrender.com';
-let herzteItems = new Set(); // "produkt_name|haendler"
+let merklisteItems = new Set(); // "suchbegriff|plz"
 
 function getUsername() {
   return localStorage.getItem('mercado_username');
@@ -244,66 +236,51 @@ function speichereUsername() {
   if (!input) return;
   localStorage.setItem('mercado_username', input);
   document.getElementById('username-modal').style.display = 'none';
-  ladeWunschliste();
+  ladeMerkliste();
 }
 
-async function ladeWunschliste() {
+async function ladeMerkliste() {
   const username = getUsername();
   if (!username) return;
   try {
-    const res = await fetch(`${API}/wishlist/${encodeURIComponent(username)}`);
+    const res = await fetch(`${API}/merkliste/${encodeURIComponent(username)}`);
     const items = await res.json();
-    herzteItems = new Set(items.map(i => `${i.produkt_name}|${i.haendler}`));
-    aktualisiereHerzButtons();
+    merklisteItems = new Set(items.map(i => `${i.suchbegriff}|${i.plz}`));
+    aktualisiereMerkenButton();
   } catch {}
 }
 
-async function toggleHerz(btn) {
+async function toggleMerken() {
   const username = getUsername();
   if (!username) { document.getElementById('username-modal').style.display = 'flex'; return; }
+  if (!aktuellerSuchbegriff) return;
 
-  const { produkt, haendler, preis, alterPreis, istAngebot, plz, einheit, gueltigBis, key } = btn.dataset;
-  const wasGeherzt = herzteItems.has(key);
+  const key = `${aktuellerSuchbegriff}|${aktuellePlz}`;
+  const warGemerkt = merklisteItems.has(key);
 
-  // Optimistic update — fill immediately
-  if (wasGeherzt) herzteItems.delete(key); else herzteItems.add(key);
-  aktualisiereHerzButtons();
+  // Optimistic update
+  if (warGemerkt) merklisteItems.delete(key); else merklisteItems.add(key);
+  aktualisiereMerkenButton();
 
   try {
-    let res;
-    if (wasGeherzt) {
-      res = await fetch(
-        `${API}/wishlist/${encodeURIComponent(username)}?produkt_name=${encodeURIComponent(produkt)}&haendler=${encodeURIComponent(haendler)}`,
-        { method: 'DELETE' }
-      );
-    } else {
-      res = await fetch(`${API}/wishlist/${encodeURIComponent(username)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          produkt_name: produkt,
-          haendler,
-          preis:       preis      ? parseFloat(preis)      : null,
-          alter_preis: alterPreis ? parseFloat(alterPreis) : null,
-          ist_angebot: istAngebot === 'true',
-          plz,
-          einheit:     einheit    || '',
-          gueltig_bis: gueltigBis || null,
-        })
-      });
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const params = `suchbegriff=${encodeURIComponent(aktuellerSuchbegriff)}&plz=${encodeURIComponent(aktuellePlz)}`;
+    const res = await fetch(
+      `${API}/merkliste/${encodeURIComponent(username)}?${params}`,
+      { method: warGemerkt ? 'DELETE' : 'POST' }
+    );
+    if (!res.ok) throw new Error();
   } catch {
-    // Revert on failure
-    if (wasGeherzt) herzteItems.add(key); else herzteItems.delete(key);
-    aktualisiereHerzButtons();
+    if (warGemerkt) merklisteItems.add(key); else merklisteItems.delete(key);
+    aktualisiereMerkenButton();
   }
 }
 
-function aktualisiereHerzButtons() {
-  document.querySelectorAll('.herz-btn').forEach(btn => {
-    btn.classList.toggle('geherzt', herzteItems.has(btn.dataset.key));
-  });
+function aktualisiereMerkenButton() {
+  const btn = document.getElementById('merken-btn');
+  if (!btn || !aktuellerSuchbegriff) return;
+  const gemerkt = merklisteItems.has(`${aktuellerSuchbegriff}|${aktuellePlz}`);
+  btn.textContent = gemerkt ? '🔖 Gemerkt' : '🔖 Merken';
+  btn.classList.toggle('gemerkt', gemerkt);
 }
 
 async function zeigeWunschliste(pushState = true) {
@@ -317,58 +294,84 @@ async function zeigeWunschliste(pushState = true) {
   section.style.display = 'block';
   section.scrollIntoView({ behavior: 'smooth' });
 
+  const inhalt = document.getElementById('wunschliste-inhalt');
+  inhalt.innerHTML = '<p class="status">⏳ Lade gespeicherte Suchen...</p>';
+
   try {
-    const res = await fetch(`${API}/wishlist/${encodeURIComponent(username)}`);
+    const res   = await fetch(`${API}/merkliste/${encodeURIComponent(username)}`);
     const items = await res.json();
 
     if (items.length === 0) {
-      document.getElementById('wunschliste-inhalt').innerHTML = '<p class="status">Noch keine Artikel gespeichert. Klick auf 🤍 bei einem Suchergebnis.</p>';
+      inhalt.innerHTML = '<p class="status">Noch keine Suchen gespeichert. Suche etwas und klick auf 🔖 Merken.</p>';
       return;
     }
 
-    let html = '';
-    items.forEach(item => {
-      const bisDatum = item.gueltig_bis ? new Date(item.gueltig_bis).toLocaleDateString('de-DE') : '';
-      const badge = item.ist_angebot
-        ? '<span class="angebot-badge">🔥 Angebot</span>'
-        : '<span class="normalpreis-badge">💰 Normalpreis</span>';
-      const preisZeile = item.alter_preis
-        ? `<div class="preis">${item.preis?.toFixed(2)}€ <span class="statt-preis">statt ${item.alter_preis.toFixed(2)}€</span></div>`
-        : `<div class="preis ${item.ist_angebot ? '' : 'normal'}">${item.preis?.toFixed(2)}€</div>`;
+    inhalt.innerHTML = '';
 
-      html += `
-        <div class="ergebnis-karte">
-          <div class="haendler haendler-${item.haendler.toLowerCase().replace(/\s+/g,'')}">${item.haendler}</div>
-          <div class="produkt-info">
-            <div class="produkt-name">${item.produkt_name}</div>
-            ${bisDatum ? `<div class="gueltigkeit">📅 gültig bis ${bisDatum}</div>` : ''}
-          </div>
-          <div class="preis-bereich">
-            ${preisZeile}
-            ${badge}
-          </div>
-          <button class="herz-btn geherzt wunschliste-herz"
-            data-key="${item.produkt_name}|${item.haendler}"
-            data-produkt="${item.produkt_name.replace(/"/g,'&quot;')}"
-            data-haendler="${item.haendler.replace(/"/g,'&quot;')}"
-            data-preis="${item.preis ?? ''}"
-            data-alter-preis="${item.alter_preis ?? ''}"
-            data-ist-angebot="${item.ist_angebot}"
-            data-plz="${item.plz ?? ''}"
-            data-einheit="${item.einheit ?? ''}"
-            data-gueltig-bis="${item.gueltig_bis ?? ''}">
-          </button>
+    // Fetch results for each saved search in parallel
+    await Promise.all(items.map(async item => {
+      const gruppe = document.createElement('div');
+      gruppe.className = 'merkliste-gruppe';
+      gruppe.innerHTML = `
+        <div class="merkliste-gruppe-header">
+          <span class="merkliste-suche-titel">🔍 ${item.suchbegriff}</span>
+          <span class="plz-badge">${item.plz}</span>
+          <button class="merkliste-remove-btn" onclick="entferneVonMerkliste('${item.suchbegriff.replace(/'/g,"\\'")}','${item.plz}',this)">✕ Entfernen</button>
+        </div>
+        <div class="merkliste-ergebnisse" id="gruppe-${encodeURIComponent(item.suchbegriff)}">
+          <p class="status">⏳</p>
         </div>`;
-    });
-    document.getElementById('wunschliste-inhalt').innerHTML = html;
+      inhalt.appendChild(gruppe);
+
+      try {
+        const r = await fetch(`${API}/search?q=${encodeURIComponent(item.suchbegriff)}&plz=${encodeURIComponent(item.plz)}`);
+        const d = await r.json();
+        const container = gruppe.querySelector('.merkliste-ergebnisse');
+
+        if (!d.ergebnisse?.length) {
+          container.innerHTML = '<p class="status" style="font-size:13px;">Keine aktuellen Angebote.</p>';
+          return;
+        }
+
+        container.innerHTML = d.ergebnisse.map(a => {
+          const haendlerKlasse = 'haendler-' + a.haendler.toLowerCase().replace(/\s+/g,'');
+          const preisHtml = a.ist_angebot && a.alter_preis
+            ? `<div class="preis">${a.preis?.toFixed(2)}€ <span class="statt-preis">statt ${a.alter_preis.toFixed(2)}€</span></div>`
+            : `<div class="preis ${a.ist_angebot ? '' : 'normal'}">${a.preis?.toFixed(2)}€</div>`;
+          const badge = a.ist_angebot
+            ? '<span class="angebot-badge">🔥 Angebot</span>'
+            : '<span class="normalpreis-badge">💰 Normalpreis</span>';
+          return `
+            <div class="ergebnis-karte kompakt">
+              <div class="haendler ${haendlerKlasse}">${a.haendler}</div>
+              <div class="produkt-info">
+                <div class="produkt-name">${a.produkt}</div>
+                ${a.gueltig_bis ? `<div class="gueltigkeit">📅 bis ${new Date(a.gueltig_bis).toLocaleDateString('de-DE')}</div>` : ''}
+              </div>
+              <div class="preis-bereich">${preisHtml}${badge}</div>
+            </div>`;
+        }).join('');
+      } catch {
+        gruppe.querySelector('.merkliste-ergebnisse').innerHTML = '<p class="status">❌ Fehler</p>';
+      }
+    }));
   } catch {
-    document.getElementById('wunschliste-inhalt').innerHTML = '<p class="status">❌ Fehler beim Laden.</p>';
+    inhalt.innerHTML = '<p class="status">❌ Fehler beim Laden.</p>';
   }
+}
+
+async function entferneVonMerkliste(suchbegriff, plz, btn) {
+  const username = getUsername();
+  if (!username) return;
+  const params = `suchbegriff=${encodeURIComponent(suchbegriff)}&plz=${encodeURIComponent(plz)}`;
+  await fetch(`${API}/merkliste/${encodeURIComponent(username)}?${params}`, { method: 'DELETE' });
+  merklisteItems.delete(`${suchbegriff}|${plz}`);
+  btn.closest('.merkliste-gruppe').remove();
+  aktualisiereMerkenButton();
 }
 
 function schliesseWunschliste() {
   document.getElementById('wunschliste-section').style.display = 'none';
-  // Restore previous URL state
   if (aktuellerSuchbegriff) {
     updateURL({ q: aktuellerSuchbegriff, plz: aktuellePlz });
   } else {
@@ -456,22 +459,8 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!getUsername()) {
     document.getElementById('username-modal').style.display = 'flex';
   } else {
-    ladeWunschliste();
+    ladeMerkliste();
   }
-
-  // Heart buttons in search results
-  document.getElementById('ergebnisse').addEventListener('click', e => {
-    const btn = e.target.closest('.herz-btn');
-    if (btn) toggleHerz(btn);
-  });
-
-  // Heart buttons in wishlist (remove item on click)
-  document.getElementById('wunschliste-inhalt').addEventListener('click', async e => {
-    const btn = e.target.closest('.wunschliste-herz');
-    if (!btn) return;
-    await toggleHerz(btn);
-    btn.closest('.ergebnis-karte').remove();
-  });
 
   // Restore state from URL on load
   const params = new URLSearchParams(window.location.search);

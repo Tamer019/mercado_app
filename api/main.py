@@ -84,19 +84,13 @@ async def init_db():
             )
         """)
         await conn.execute("""
-            CREATE TABLE IF NOT EXISTS wunschliste (
+            CREATE TABLE IF NOT EXISTS merkliste (
                 id              SERIAL PRIMARY KEY,
                 username        VARCHAR(100) NOT NULL,
-                produkt_name    VARCHAR(200) NOT NULL,
-                haendler        VARCHAR(100) NOT NULL,
-                preis           FLOAT,
-                alter_preis     FLOAT,
-                ist_angebot     BOOLEAN DEFAULT FALSE,
-                plz             VARCHAR(10),
-                einheit         VARCHAR(20),
-                gueltig_bis     TIMESTAMP,
+                suchbegriff     VARCHAR(200) NOT NULL,
+                plz             VARCHAR(10) NOT NULL DEFAULT '72555',
                 gespeichert_am  TIMESTAMP DEFAULT NOW(),
-                UNIQUE(username, produkt_name, haendler)
+                UNIQUE(username, suchbegriff, plz)
             )
         """)
         await conn.close()
@@ -109,64 +103,42 @@ async def init_db():
 async def startup():
     await init_db()
 
-# ========== WISHLIST ENDPOINTS ==========
+# ========== MERKLISTE ENDPOINTS ==========
 
-class WunschlistenItem(BaseModel):
-    produkt_name: str
-    haendler: str
-    preis: Optional[float] = None
-    alter_preis: Optional[float] = None
-    ist_angebot: bool = False
-    plz: str = "72555"
-    einheit: str = ""
-    gueltig_bis: Optional[str] = None
-
-@app.get("/wishlist/{username}")
-async def get_wishlist(username: str):
+@app.get("/merkliste/{username}")
+async def get_merkliste(username: str):
     conn = await get_connection()
     rows = await conn.fetch("""
-        SELECT id, produkt_name, haendler, preis, alter_preis, ist_angebot,
-               plz, einheit, gueltig_bis, gespeichert_am
-        FROM wunschliste
+        SELECT suchbegriff, plz, gespeichert_am
+        FROM merkliste
         WHERE username = $1
         ORDER BY gespeichert_am DESC
     """, username)
     await conn.close()
     return [dict(r) for r in rows]
 
-@app.post("/wishlist/{username}")
-async def add_to_wishlist(username: str, item: WunschlistenItem):
-    gueltig_bis = None
-    if item.gueltig_bis:
-        from datetime import datetime
-        try:
-            gueltig_bis = datetime.fromisoformat(item.gueltig_bis.replace("Z", "+00:00"))
-        except ValueError:
-            pass
-
+@app.post("/merkliste/{username}")
+async def add_to_merkliste(username: str, suchbegriff: str, plz: str = "72555"):
     conn = await get_connection()
     await conn.execute("""
-        INSERT INTO wunschliste
-            (username, produkt_name, haendler, preis, alter_preis,
-             ist_angebot, plz, einheit, gueltig_bis)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-        ON CONFLICT (username, produkt_name, haendler) DO NOTHING
-    """, username, item.produkt_name, item.haendler, item.preis,
-         item.alter_preis, item.ist_angebot, item.plz, item.einheit, gueltig_bis)
+        INSERT INTO merkliste (username, suchbegriff, plz)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (username, suchbegriff, plz) DO NOTHING
+    """, username, suchbegriff, plz)
     await conn.close()
     return {"message": "Gespeichert"}
 
-@app.delete("/wishlist/{username}")
-async def remove_from_wishlist(
+@app.delete("/merkliste/{username}")
+async def remove_from_merkliste(
     username: str,
-    produkt_name: str = Query(...),
-    haendler: str = Query(...)
+    suchbegriff: str = Query(...),
+    plz: str = Query(...)
 ):
     conn = await get_connection()
     await conn.execute("""
-        DELETE FROM wunschliste
-        WHERE username = $1 AND produkt_name = $2 AND haendler = $3
-    """, username, produkt_name, haendler)
+        DELETE FROM merkliste
+        WHERE username = $1 AND suchbegriff = $2 AND plz = $3
+    """, username, suchbegriff, plz)
     await conn.close()
     return {"message": "Entfernt"}
 
