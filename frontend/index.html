@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Supermarkt Preisvergleich</title>
+  <title>Mercado App</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -38,7 +38,10 @@
 
   <div class="container">
     <div class="top-bar">
-      <h1 onclick="goHome()" style="cursor:pointer;">Supermarkt Preisvergleich</h1>
+      <div onclick="goHome()" style="cursor:pointer;">
+        <h1>Mercado App</h1>
+        <p style="font-size:13px; color:#64748b; margin-top:2px;">Supermarkt Preisvergleich</p>
+      </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <button class="wishlist-nav-btn" onclick="zeigeWunschliste()" id="wishlist-nav-btn">Wunschliste</button>
         <div class="avatar-container" id="avatar-container" style="display:none;">
@@ -55,7 +58,10 @@
     <!-- Suchbox -->
     <div class="suchbox">
       <input type="text" id="suchbegriff" placeholder="Produkt eingeben, z.B. Mango" />
-      <input type="text" id="plz" placeholder="PLZ" value="72555" style="max-width: 100px;" />
+      <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+        <input type="text" id="plz" placeholder="PLZ" value="72555" style="max-width: 100px;" />
+        <button class="info-btn" onclick="toggleInfo(event, 'Die Postleitzahl bestimmt, welche regionalen Angebote angezeigt werden. Händler ohne Eintrag für diese PLZ erscheinen nicht in den Ergebnissen.')">?</button>
+      </div>
       <button onclick="suchen()" id="such-button">Suchen</button>
     </div>
 
@@ -86,6 +92,8 @@
     </div>
     <p id="verlauf-status" class="status"></p>
   </div>
+
+  <div id="info-popover"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="script.js"></script>

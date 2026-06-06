@@ -1,3 +1,38 @@
+// ── Info popover ──────────────────────────────────────────────────────────────
+let activeInfoBtn = null;
+
+function toggleInfo(event, text) {
+  event.stopPropagation();
+  const btn = event.currentTarget;
+  const popover = document.getElementById('info-popover');
+
+  if (activeInfoBtn === btn) {
+    popover.style.display = 'none';
+    activeInfoBtn = null;
+    return;
+  }
+
+  popover.textContent = text;
+  popover.style.display = 'block';
+
+  const rect = btn.getBoundingClientRect();
+  let top  = rect.bottom + 8;
+  let left = rect.left;
+
+  if (left + 250 > window.innerWidth) left = window.innerWidth - 258;
+  if (top + 100 > window.innerHeight) top = rect.top - popover.offsetHeight - 8;
+
+  popover.style.top  = top + 'px';
+  popover.style.left = left + 'px';
+  activeInfoBtn = btn;
+}
+
+document.addEventListener('click', () => {
+  const popover = document.getElementById('info-popover');
+  if (popover) popover.style.display = 'none';
+  activeInfoBtn = null;
+});
+
 const HAENDLER_FARBEN = {
   'lidl':      '#60a5fa',
   'aldi':      '#4ade80',
@@ -137,6 +172,7 @@ function zeigeFilterBar() {
   // Nur-Angebote-Toggle
   html += '<div class="filter-gruppe">';
   html += `<button class="filter-btn toggle-btn${nurAngebote ? ' aktiv' : ''}" onclick="toggleNurAngebote()">Nur Angebote</button>`;
+  html += `<button class="info-btn" onclick="toggleInfo(event, 'Zeigt nur Produkte, die aktuell im Angebot sind. Einträge mit Normalpreis aus der Datenbank werden ausgeblendet.')">?</button>`;
   html += '</div>';
 
   const bar = document.getElementById('filter-bar');
@@ -163,10 +199,16 @@ function renderErgebnisse() {
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
       <p class="status" style="margin:0;">${filterAktiv ? `${shown} von ${total}` : total} Ergebnisse</p>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button id="merken-btn" class="merken-btn ${gemerkt ? 'gemerkt' : ''}" onclick="toggleMerken()">
-          ${gemerkt ? 'Gemerkt' : 'Merken'}
-        </button>
-        <button class="verlauf-btn" onclick="zeigeVerlauf('${aktuellerSuchbegriff.replace(/'/g, "\\'")}', '${aktuellePlz}')">Preisverlauf</button>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button id="merken-btn" class="merken-btn ${gemerkt ? 'gemerkt' : ''}" onclick="toggleMerken()">
+            ${gemerkt ? 'Gemerkt' : 'Merken'}
+          </button>
+          <button class="info-btn" onclick="toggleInfo(event, 'Speichert diese Suche in deiner Wunschliste. Du kannst sie später über den Wunschliste-Button oben jederzeit aufrufen.')">?</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button class="verlauf-btn" onclick="zeigeVerlauf('${aktuellerSuchbegriff.replace(/'/g, "\\'")}', '${aktuellePlz}')">Preisverlauf</button>
+          <button class="info-btn" onclick="toggleInfo(event, 'Zeigt historische Preisdaten aus der Datenbank.')">?</button>
+        </div>
       </div>
     </div>
   `;
