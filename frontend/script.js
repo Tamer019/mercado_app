@@ -184,6 +184,13 @@ function setHaendler(h)   { aktiverHaendler  = h; zeigeFilterBar(); renderErgebn
 function setKategorie(k)  { aktiveKategorie  = k; zeigeFilterBar(); renderErgebnisse(); }
 function toggleNurAngebote() { nurAngebote   = !nurAngebote; zeigeFilterBar(); renderErgebnisse(); }
 
+function istExakterTreffer(produktName, suchbegriff) {
+  if (!produktName || !suchbegriff) return false;
+  const term = suchbegriff.toLowerCase().trim();
+  const tokens = produktName.toLowerCase().split(/[\s\-\/,.()\[\]]+/);
+  return tokens.some(t => t === term);
+}
+
 function renderErgebnisse() {
   let gefiltert = alleErgebnisse;
   if (aktiverHaendler) gefiltert = gefiltert.filter(e => e.haendler === aktiverHaendler);
@@ -219,33 +226,28 @@ function renderErgebnisse() {
     return;
   }
 
-  gefiltert.forEach(angebot => {
+  const exakt    = gefiltert.filter(e => istExakterTreffer(e.produkt, aktuellerSuchbegriff));
+  const weiteres = gefiltert.filter(e => !istExakterTreffer(e.produkt, aktuellerSuchbegriff));
+
+  function karteHtml(angebot) {
     const vonDatum = angebot.gueltig_von
       ? new Date(angebot.gueltig_von).toLocaleDateString('de-DE') : '';
     const bisDatum = angebot.gueltig_bis
       ? new Date(angebot.gueltig_bis).toLocaleDateString('de-DE') : '';
-
     const haendlerKlasse = 'haendler-' + angebot.haendler.toLowerCase().replace(/\s+/g, '');
-
     let badgeHtml = '';
     let preisHtml = '';
-
     if (angebot.ist_angebot === true) {
       badgeHtml = '<span class="angebot-badge">Aktuell im Angebot</span>';
-      if (angebot.alter_preis && angebot.alter_preis > 0) {
-        preisHtml = `
-          <div class="preis">${angebot.preis.toFixed(2)}€
-            <span class="statt-preis">statt ${angebot.alter_preis.toFixed(2)}€</span>
-          </div>`;
-      } else {
-        preisHtml = `<div class="preis">${angebot.preis.toFixed(2)}€</div>`;
-      }
+      preisHtml = angebot.alter_preis && angebot.alter_preis > 0
+        ? `<div class="preis">${angebot.preis.toFixed(2)}€ <span class="statt-preis">statt ${angebot.alter_preis.toFixed(2)}€</span></div>`
+        : `<div class="preis">${angebot.preis.toFixed(2)}€</div>`;
     } else {
       badgeHtml = '<span class="normalpreis-badge">Normalpreis</span>';
       preisHtml = `<div class="preis normal">${angebot.preis.toFixed(2)}€</div>`;
     }
-
-    html += `
+    const inListe = einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`);
+    return `
       <div class="ergebnis-karte">
         <div class="haendler ${haendlerKlasse}">${angebot.haendler}</div>
         <div class="produkt-info">
@@ -257,15 +259,28 @@ function renderErgebnisse() {
         <div class="preis-bereich">
           ${preisHtml}
           ${badgeHtml}
-          <button class="add-to-list-btn${einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`) ? ' hinzugefuegt' : ''}"
+          <button class="add-to-list-btn${inListe ? ' hinzugefuegt' : ''}"
             onclick="addToEinkaufsliste('${angebot.produkt.replace(/'/g,"\\'")}','${angebot.haendler.replace(/'/g,"\\'")}',${angebot.preis},'${aktuellePlz}',this)"
-            ${einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`) ? 'disabled' : ''}>
-            ${einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`) ? 'Hinzugefügt' : '+ Einkaufsliste'}
+            ${inListe ? 'disabled' : ''}>
+            ${inListe ? 'Hinzugefügt' : '+ Einkaufsliste'}
           </button>
         </div>
-      </div>
-    `;
-  });
+      </div>`;
+  }
+
+  if (exakt.length === 0 && weiteres.length > 0) {
+    html += '<p class="status" style="margin-bottom:8px;">Keine exakten Treffer — ähnliche Produkte:</p>';
+  }
+
+  exakt.forEach(a => { html += karteHtml(a); });
+
+  if (exakt.length > 0 && weiteres.length > 0) {
+    const namen = [...new Set(weiteres.map(a => a.produkt))].slice(0, 5).join(', ');
+    html += `<div class="weiteres-trenner">Weiteres: ${namen}${weiteres.length > 5 ? ' …' : ''}</div>`;
+    weiteres.forEach(a => { html += karteHtml(a); });
+  } else if (exakt.length === 0) {
+    weiteres.forEach(a => { html += karteHtml(a); });
+  }
 
   document.getElementById('ergebnisse').innerHTML = html;
 }
