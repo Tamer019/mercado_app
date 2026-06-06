@@ -680,6 +680,94 @@ button:disabled {
   box-shadow: none;
 }
 
+/* Add to shopping list button */
+.add-to-list-btn {
+  background: rgba(74, 222, 128, 0.08);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  margin-top: 6px;
+  transition: all 0.2s ease;
+}
+
+.add-to-list-btn:hover {
+  background: rgba(74, 222, 128, 0.18);
+  transform: none;
+  box-shadow: none;
+}
+
+.add-to-list-btn.hinzugefuegt {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+/* Shopping list section */
+#einkaufsliste-section {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 24px;
+  backdrop-filter: blur(10px);
+}
+
+.einkauf-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(15, 20, 25, 0.4);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.einkauf-item-info {
+  flex: 1;
+}
+
+.einkauf-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.einkauf-item-meta {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Search field within lists */
+.listen-suchfeld {
+  width: 100%;
+  padding: 9px 14px;
+  background: rgba(15, 20, 25, 0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
+}
+
+.listen-suchfeld:focus {
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.listen-suchfeld::placeholder {
+  color: rgba(224, 224, 224, 0.3);
+}
+
 /* Info button */
 .info-btn {
   width: 18px;

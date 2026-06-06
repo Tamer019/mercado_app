@@ -257,6 +257,11 @@ function renderErgebnisse() {
         <div class="preis-bereich">
           ${preisHtml}
           ${badgeHtml}
+          <button class="add-to-list-btn${einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`) ? ' hinzugefuegt' : ''}"
+            onclick="addToEinkaufsliste('${angebot.produkt.replace(/'/g,"\\'")}','${angebot.haendler.replace(/'/g,"\\'")}',${angebot.preis},'${aktuellePlz}',this)"
+            ${einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`) ? 'disabled' : ''}>
+            ${einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`) ? 'Hinzugefügt' : '+ Einkaufsliste'}
+          </button>
         </div>
       </div>
     `;
@@ -475,6 +480,103 @@ function schliesseWunschliste() {
   }
 }
 
+// ── Wunschliste Suche ─────────────────────────────────────────────────────────
+function filterWunschliste() {
+  const term = document.getElementById('wunschliste-suche').value.toLowerCase();
+  document.querySelectorAll('#wunschliste-inhalt .merkliste-gruppe').forEach(gruppe => {
+    const titel = gruppe.querySelector('.merkliste-suche-titel')?.textContent.toLowerCase() || '';
+    gruppe.style.display = titel.includes(term) ? '' : 'none';
+  });
+}
+
+// ── Einkaufsliste ─────────────────────────────────────────────────────────────
+let einkaufItems = new Set(); // "produkt|haendler|plz"
+
+async function addToEinkaufsliste(produkt, haendler, preis, plz, btn) {
+  const username = getUsername();
+  if (!username) { document.getElementById('username-modal').style.display = 'flex'; return; }
+
+  const key = `${produkt}|${haendler}|${plz}`;
+  if (einkaufItems.has(key)) return;
+
+  const params = new URLSearchParams({ produkt_name: produkt, haendler, preis, plz });
+  try {
+    const res = await fetch(`${API}/einkaufsliste/${encodeURIComponent(username)}?${params}`, { method: 'POST' });
+    if (res.ok) {
+      einkaufItems.add(key);
+      if (btn) { btn.textContent = 'Hinzugefügt'; btn.classList.add('hinzugefuegt'); btn.disabled = true; }
+    }
+  } catch {}
+}
+
+async function ladeEinkaufsliste() {
+  const username = getUsername();
+  if (!username) return;
+  try {
+    const res = await fetch(`${API}/einkaufsliste/${encodeURIComponent(username)}`);
+    const items = await res.json();
+    einkaufItems = new Set(items.map(i => `${i.produkt_name}|${i.haendler}|${i.plz}`));
+  } catch {}
+}
+
+async function zeigeEinkaufsliste() {
+  const username = getUsername();
+  if (!username) { document.getElementById('username-modal').style.display = 'flex'; return; }
+
+  document.getElementById('einkaufsliste-username').textContent = username;
+  const section = document.getElementById('einkaufsliste-section');
+  section.style.display = 'block';
+  section.scrollIntoView({ behavior: 'smooth' });
+
+  const inhalt = document.getElementById('einkaufsliste-inhalt');
+  inhalt.innerHTML = '<p class="status">Lade Einkaufsliste...</p>';
+
+  try {
+    const res = await fetch(`${API}/einkaufsliste/${encodeURIComponent(username)}`);
+    const items = await res.json();
+
+    if (items.length === 0) {
+      inhalt.innerHTML = '<p class="status">Die Einkaufsliste ist leer. Füge Produkte über die Suchergebnisse hinzu.</p>';
+      return;
+    }
+
+    inhalt.innerHTML = items.map(item => `
+      <div class="einkauf-item" data-name="${item.produkt_name.toLowerCase()}" data-haendler="${item.haendler.toLowerCase()}">
+        <div class="einkauf-item-info">
+          <div class="einkauf-item-name">${item.produkt_name}</div>
+          <div class="einkauf-item-meta">${item.haendler} · ${item.preis?.toFixed(2)}€ · PLZ ${item.plz}</div>
+        </div>
+        <button class="merkliste-remove-btn" onclick="entferneVonEinkaufsliste(${item.id}, '${item.produkt_name.replace(/'/g,"\\'")}','${item.haendler.replace(/'/g,"\\'")}','${item.plz}', this)">✕</button>
+      </div>
+    `).join('');
+  } catch {
+    inhalt.innerHTML = '<p class="status">Fehler beim Laden.</p>';
+  }
+}
+
+function schliesseEinkaufsliste() {
+  document.getElementById('einkaufsliste-section').style.display = 'none';
+}
+
+async function entferneVonEinkaufsliste(id, produkt, haendler, plz, btn) {
+  const username = getUsername();
+  if (!username) return;
+  try {
+    await fetch(`${API}/einkaufsliste/${encodeURIComponent(username)}/${id}`, { method: 'DELETE' });
+    einkaufItems.delete(`${produkt}|${haendler}|${plz}`);
+    btn.closest('.einkauf-item').remove();
+    renderErgebnisse();
+  } catch {}
+}
+
+function filterEinkaufsliste() {
+  const term = document.getElementById('einkaufsliste-suche').value.toLowerCase();
+  document.querySelectorAll('#einkaufsliste-inhalt .einkauf-item').forEach(item => {
+    const text = (item.dataset.name + ' ' + item.dataset.haendler);
+    item.style.display = text.includes(term) ? '' : 'none';
+  });
+}
+
 // ── URL state ─────────────────────────────────────────────────────────────────
 function updateURL(params) {
   const url = new URL(window.location.href);
@@ -555,6 +657,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   } else {
     zeigeAvatar();
     await ladeMerkliste();
+    await ladeEinkaufsliste();
   }
 
   // Restore state from URL

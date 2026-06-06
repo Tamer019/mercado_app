@@ -44,6 +44,7 @@
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <button class="wishlist-nav-btn" onclick="zeigeWunschliste()" id="wishlist-nav-btn">Wunschliste</button>
+        <button class="wishlist-nav-btn" onclick="zeigeEinkaufsliste()" id="einkauf-nav-btn" style="border-color:rgba(74,222,128,0.4); color:#4ade80; background:rgba(74,222,128,0.08);">Einkaufsliste</button>
         <div class="avatar-container" id="avatar-container" style="display:none;">
           <div class="avatar-bubble" id="avatar-bubble" onclick="toggleAvatarMenu()"></div>
           <div class="avatar-tooltip" id="avatar-tooltip"></div>
@@ -77,7 +78,18 @@
         <span>Wunschliste von <span id="wunschliste-username"></span></span>
         <button id="verlauf-close" onclick="schliesseWunschliste()">✕</button>
       </div>
+      <input class="listen-suchfeld" id="wunschliste-suche" type="text" placeholder="Suche in der Wunschliste..." oninput="filterWunschliste()" />
       <div id="wunschliste-inhalt"></div>
+    </div>
+
+    <!-- Einkaufsliste -->
+    <div id="einkaufsliste-section" style="display:none;">
+      <div class="verlauf-header">
+        <span>Einkaufsliste von <span id="einkaufsliste-username"></span></span>
+        <button onclick="schliesseEinkaufsliste()">✕</button>
+      </div>
+      <input class="listen-suchfeld" id="einkaufsliste-suche" type="text" placeholder="Suche in der Einkaufsliste..." oninput="filterEinkaufsliste()" />
+      <div id="einkaufsliste-inhalt"></div>
     </div>
   </div>
 

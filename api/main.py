@@ -93,6 +93,18 @@ async def init_db():
                 UNIQUE(username, suchbegriff, plz)
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS einkaufsliste (
+                id              SERIAL PRIMARY KEY,
+                username        VARCHAR(100) NOT NULL,
+                produkt_name    VARCHAR(200) NOT NULL,
+                haendler        VARCHAR(100) NOT NULL,
+                preis           FLOAT,
+                plz             VARCHAR(10),
+                gespeichert_am  TIMESTAMP DEFAULT NOW(),
+                UNIQUE(username, produkt_name, haendler, plz)
+            )
+        """)
         await conn.close()
         print("✅ DB tables ready")
     except Exception as e:
@@ -139,6 +151,40 @@ async def remove_from_merkliste(
         DELETE FROM merkliste
         WHERE username = $1 AND suchbegriff = $2 AND plz = $3
     """, username, suchbegriff, plz)
+    await conn.close()
+    return {"message": "Entfernt"}
+
+# ========== EINKAUFSLISTE ENDPOINTS ==========
+
+@app.get("/einkaufsliste/{username}")
+async def get_einkaufsliste(username: str):
+    conn = await get_connection()
+    rows = await conn.fetch("""
+        SELECT id, produkt_name, haendler, preis, plz, gespeichert_am
+        FROM einkaufsliste
+        WHERE username = $1
+        ORDER BY gespeichert_am DESC
+    """, username)
+    await conn.close()
+    return [dict(r) for r in rows]
+
+@app.post("/einkaufsliste/{username}")
+async def add_to_einkaufsliste(username: str, produkt_name: str, haendler: str, preis: float, plz: str):
+    conn = await get_connection()
+    await conn.execute("""
+        INSERT INTO einkaufsliste (username, produkt_name, haendler, preis, plz)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (username, produkt_name, haendler, plz) DO NOTHING
+    """, username, produkt_name, haendler, preis, plz)
+    await conn.close()
+    return {"message": "Gespeichert"}
+
+@app.delete("/einkaufsliste/{username}/{id}")
+async def remove_from_einkaufsliste(username: str, id: int):
+    conn = await get_connection()
+    await conn.execute("""
+        DELETE FROM einkaufsliste WHERE username = $1 AND id = $2
+    """, username, id)
     await conn.close()
     return {"message": "Entfernt"}
 
