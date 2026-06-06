@@ -442,7 +442,14 @@ async function zeigeWunschliste(pushState = true) {
                 <div class="produkt-name">${a.produkt}</div>
                 ${a.gueltig_bis ? `<div class="gueltigkeit">bis ${new Date(a.gueltig_bis).toLocaleDateString('de-DE')}</div>` : ''}
               </div>
-              <div class="preis-bereich">${preisHtml}${badge}</div>
+              <div class="preis-bereich">
+                ${preisHtml}${badge}
+                <button class="add-to-list-btn${einkaufItems.has(`${a.produkt}|${a.haendler}|${item.plz}`) ? ' hinzugefuegt' : ''}"
+                  onclick="addToEinkaufsliste('${(a.produkt||'').replace(/'/g,"\\'")}','${a.haendler.replace(/'/g,"\\'")}',${a.preis},'${item.plz}',this)"
+                  ${einkaufItems.has(`${a.produkt}|${a.haendler}|${item.plz}`) ? 'disabled' : ''}>
+                  ${einkaufItems.has(`${a.produkt}|${a.haendler}|${item.plz}`) ? 'Hinzugefügt' : '+ Einkaufsliste'}
+                </button>
+              </div>
             </div>`;
         }).join('');
       } catch {
