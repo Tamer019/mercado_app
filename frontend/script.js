@@ -275,8 +275,7 @@ function renderErgebnisse() {
   exakt.forEach(a => { html += karteHtml(a); });
 
   if (exakt.length > 0 && weiteres.length > 0) {
-    const namen = [...new Set(weiteres.map(a => a.produkt))].slice(0, 5).join(', ');
-    html += `<div class="weiteres-trenner">Weiteres: ${namen}${weiteres.length > 5 ? ' …' : ''}</div>`;
+    html += `<div class="weiteres-trenner">Weitere Produkte mit „${aktuellerSuchbegriff}"</div>`;
     weiteres.forEach(a => { html += karteHtml(a); });
   } else if (exakt.length === 0) {
     weiteres.forEach(a => { html += karteHtml(a); });
