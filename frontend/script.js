@@ -24,8 +24,8 @@ async function zeigeVerlauf(q, plz) {
   const titel   = document.getElementById('verlauf-titel');
 
   section.style.display = 'block';
-  status.textContent    = '⏳ Lade Preisverlauf...';
-  titel.textContent     = `📈 Preisverlauf: ${q}`;
+  status.textContent    = 'Lade Preisverlauf...';
+  titel.textContent     = `Preisverlauf: ${q}`;
   section.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   if (aktuellerChart) { aktuellerChart.destroy(); aktuellerChart = null; }
@@ -91,7 +91,7 @@ async function zeigeVerlauf(q, plz) {
 
     status.textContent = `${daten.anzahl_eintraege} Einträge aus der Datenbank`;
   } catch {
-    status.textContent = '❌ Fehler beim Laden des Preisverlaufs.';
+    status.textContent = 'Fehler beim Laden des Preisverlaufs.';
   }
 }
 
@@ -136,7 +136,7 @@ function zeigeFilterBar() {
 
   // Nur-Angebote-Toggle
   html += '<div class="filter-gruppe">';
-  html += `<button class="filter-btn toggle-btn${nurAngebote ? ' aktiv' : ''}" onclick="toggleNurAngebote()">🔥 Nur Angebote</button>`;
+  html += `<button class="filter-btn toggle-btn${nurAngebote ? ' aktiv' : ''}" onclick="toggleNurAngebote()">Nur Angebote</button>`;
   html += '</div>';
 
   const bar = document.getElementById('filter-bar');
@@ -164,9 +164,9 @@ function renderErgebnisse() {
       <p class="status" style="margin:0;">${filterAktiv ? `${shown} von ${total}` : total} Ergebnisse</p>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button id="merken-btn" class="merken-btn ${gemerkt ? 'gemerkt' : ''}" onclick="toggleMerken()">
-          ${gemerkt ? '🔖 Gemerkt' : '🔖 Merken'}
+          ${gemerkt ? 'Gemerkt' : 'Merken'}
         </button>
-        <button class="verlauf-btn" onclick="zeigeVerlauf('${aktuellerSuchbegriff.replace(/'/g, "\\'")}', '${aktuellePlz}')">📈 Preisverlauf</button>
+        <button class="verlauf-btn" onclick="zeigeVerlauf('${aktuellerSuchbegriff.replace(/'/g, "\\'")}', '${aktuellePlz}')">Preisverlauf</button>
       </div>
     </div>
   `;
@@ -189,7 +189,7 @@ function renderErgebnisse() {
     let preisHtml = '';
 
     if (angebot.ist_angebot === true) {
-      badgeHtml = '<span class="angebot-badge">🔥 Aktuell im Angebot</span>';
+      badgeHtml = '<span class="angebot-badge">Aktuell im Angebot</span>';
       if (angebot.alter_preis && angebot.alter_preis > 0) {
         preisHtml = `
           <div class="preis">${angebot.preis.toFixed(2)}€
@@ -199,7 +199,7 @@ function renderErgebnisse() {
         preisHtml = `<div class="preis">${angebot.preis.toFixed(2)}€</div>`;
       }
     } else {
-      badgeHtml = '<span class="normalpreis-badge">💰 Normalpreis</span>';
+      badgeHtml = '<span class="normalpreis-badge">Normalpreis</span>';
       preisHtml = `<div class="preis normal">${angebot.preis.toFixed(2)}€</div>`;
     }
 
@@ -210,7 +210,7 @@ function renderErgebnisse() {
           <div class="produkt-name">${angebot.produkt}</div>
           <div class="beschreibung">${angebot.beschreibung}</div>
           ${angebot.kategorie ? `<div class="gueltigkeit">${angebot.kategorie}</div>` : ''}
-          ${vonDatum ? `<div class="gueltigkeit">📅 ${vonDatum} – ${bisDatum}</div>` : ''}
+          ${vonDatum ? `<div class="gueltigkeit">${vonDatum} – ${bisDatum}</div>` : ''}
         </div>
         <div class="preis-bereich">
           ${preisHtml}
@@ -325,7 +325,7 @@ function aktualisiereMerkenButton() {
   const btn = document.getElementById('merken-btn');
   if (!btn || !aktuellerSuchbegriff) return;
   const gemerkt = merklisteItems.has(`${aktuellerSuchbegriff}|${aktuellePlz}`);
-  btn.textContent = gemerkt ? '🔖 Gemerkt' : '🔖 Merken';
+  btn.textContent = gemerkt ? 'Gemerkt' : 'Merken';
   btn.classList.toggle('gemerkt', gemerkt);
 }
 
@@ -341,14 +341,14 @@ async function zeigeWunschliste(pushState = true) {
   section.scrollIntoView({ behavior: 'smooth' });
 
   const inhalt = document.getElementById('wunschliste-inhalt');
-  inhalt.innerHTML = '<p class="status">⏳ Lade gespeicherte Suchen...</p>';
+  inhalt.innerHTML = '<p class="status">Lade gespeicherte Suchen...</p>';
 
   try {
     const res   = await fetch(`${API}/merkliste/${encodeURIComponent(username)}`);
     const items = await res.json();
 
     if (items.length === 0) {
-      inhalt.innerHTML = '<p class="status">Noch keine Suchen gespeichert. Suche etwas und klick auf 🔖 Merken.</p>';
+      inhalt.innerHTML = '<p class="status">Noch keine Suchen gespeichert. Suche etwas und klick auf Merken.</p>';
       return;
     }
 
@@ -361,12 +361,12 @@ async function zeigeWunschliste(pushState = true) {
       gruppe.innerHTML = `
         <div class="merkliste-gruppe-header" onclick="toggleGruppe(this)">
           <span class="gruppe-arrow">▾</span>
-          <span class="merkliste-suche-titel">🔍 ${item.suchbegriff}</span>
+          <span class="merkliste-suche-titel">${item.suchbegriff}</span>
           <span class="plz-badge">${item.plz}</span>
           <button class="merkliste-remove-btn" onclick="event.stopPropagation(); entferneVonMerkliste('${item.suchbegriff.replace(/'/g,"\\'")}','${item.plz}',this)">✕</button>
         </div>
         <div class="merkliste-ergebnisse">
-          <p class="status">⏳</p>
+          <p class="status">Lade...</p>
         </div>`;
       inhalt.appendChild(gruppe);
 
@@ -386,24 +386,24 @@ async function zeigeWunschliste(pushState = true) {
             ? `<div class="preis">${a.preis?.toFixed(2)}€ <span class="statt-preis">statt ${a.alter_preis.toFixed(2)}€</span></div>`
             : `<div class="preis ${a.ist_angebot ? '' : 'normal'}">${a.preis?.toFixed(2)}€</div>`;
           const badge = a.ist_angebot
-            ? '<span class="angebot-badge">🔥 Angebot</span>'
-            : '<span class="normalpreis-badge">💰 Normalpreis</span>';
+            ? '<span class="angebot-badge">Angebot</span>'
+            : '<span class="normalpreis-badge">Normalpreis</span>';
           return `
             <div class="ergebnis-karte kompakt">
               <div class="haendler ${haendlerKlasse}">${a.haendler}</div>
               <div class="produkt-info">
                 <div class="produkt-name">${a.produkt}</div>
-                ${a.gueltig_bis ? `<div class="gueltigkeit">📅 bis ${new Date(a.gueltig_bis).toLocaleDateString('de-DE')}</div>` : ''}
+                ${a.gueltig_bis ? `<div class="gueltigkeit">bis ${new Date(a.gueltig_bis).toLocaleDateString('de-DE')}</div>` : ''}
               </div>
               <div class="preis-bereich">${preisHtml}${badge}</div>
             </div>`;
         }).join('');
       } catch {
-        gruppe.querySelector('.merkliste-ergebnisse').innerHTML = '<p class="status">❌ Fehler</p>';
+        gruppe.querySelector('.merkliste-ergebnisse').innerHTML = '<p class="status">Fehler beim Laden</p>';
       }
     }));
   } catch {
-    inhalt.innerHTML = '<p class="status">❌ Fehler beim Laden.</p>';
+    inhalt.innerHTML = '<p class="status">Fehler beim Laden.</p>';
   }
 }
 
@@ -466,7 +466,7 @@ async function suchen(pushState = true) {
 
   button.disabled     = true;
   button.textContent  = 'Suche...';
-  ergebnisseDiv.innerHTML = '<p class="status">⏳ Suche läuft...</p>';
+  ergebnisseDiv.innerHTML = '<p class="status">Suche läuft...</p>';
   document.getElementById('filter-bar').style.display = 'none';
   schliesseVerlauf();
 
@@ -491,7 +491,7 @@ async function suchen(pushState = true) {
     renderErgebnisse();
 
   } catch {
-    ergebnisseDiv.innerHTML = '<p class="status">❌ Fehler: Ist der Backend Server gestartet?</p>';
+    ergebnisseDiv.innerHTML = '<p class="status">Fehler: Ist der Backend Server gestartet?</p>';
   } finally {
     button.disabled    = false;
     button.textContent = 'Suchen';

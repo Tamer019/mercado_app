@@ -11,7 +11,7 @@
   <!-- Username Modal -->
   <div id="username-modal" class="modal-overlay" style="display:none;">
     <div class="modal-box">
-      <h2>👋 Willkommen!</h2>
+      <h2>Willkommen!</h2>
       <p>Gib deinen Namen ein und wähle einen Avatar.</p>
       <input type="text" id="username-input" placeholder="Dein Name" maxlength="50" />
       <div class="avatar-grid">
@@ -38,15 +38,15 @@
 
   <div class="container">
     <div class="top-bar">
-      <h1 onclick="goHome()" style="cursor:pointer;">🛒 Supermarkt Preisvergleich</h1>
+      <h1 onclick="goHome()" style="cursor:pointer;">Supermarkt Preisvergleich</h1>
       <div style="display:flex; align-items:center; gap:10px;">
-        <button class="wishlist-nav-btn" onclick="zeigeWunschliste()" id="wishlist-nav-btn">❤️ Wunschliste</button>
+        <button class="wishlist-nav-btn" onclick="zeigeWunschliste()" id="wishlist-nav-btn">Wunschliste</button>
         <div class="avatar-container" id="avatar-container" style="display:none;">
           <div class="avatar-bubble" id="avatar-bubble" onclick="toggleAvatarMenu()"></div>
           <div class="avatar-tooltip" id="avatar-tooltip"></div>
           <div class="avatar-menu" id="avatar-menu" style="display:none;">
             <div class="avatar-menu-name" id="avatar-menu-name"></div>
-            <button onclick="ausloggen()">🚪 Ausloggen</button>
+            <button onclick="ausloggen()">Ausloggen</button>
           </div>
         </div>
       </div>
@@ -68,7 +68,7 @@
     <!-- Wunschliste -->
     <div id="wunschliste-section" style="display:none;">
       <div class="verlauf-header">
-        <span>❤️ Wunschliste von <span id="wunschliste-username"></span></span>
+        <span>Wunschliste von <span id="wunschliste-username"></span></span>
         <button id="verlauf-close" onclick="schliesseWunschliste()">✕</button>
       </div>
       <div id="wunschliste-inhalt"></div>

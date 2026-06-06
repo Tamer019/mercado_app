@@ -65,7 +65,7 @@
 </head>
 <body>
 <div class="admin-container">
-    <h1>🛠️ Admin: Originalpreise verwalten</h1>
+    <h1>Admin: Originalpreise verwalten</h1>
     
     <form id="loginForm" style="display: block;">
         <h2>Login</h2>
@@ -76,7 +76,7 @@
 
     <div id="adminContent" style="display: none;">
         <div style="background: rgba(74, 222, 128, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-        <h3>🔄 OldPrice Sync</h3>
+        <h3>OldPrice Sync</h3>
         <button id="syncBtn" style="background: #4ade80; color: black; padding: 8px 16px;">OldPrices aus API übernehmen</button>
         <span id="syncStatus" style="margin-left: 10px;"></span>
         </div>
@@ -203,7 +203,7 @@
         const syncStatus = document.getElementById('syncStatus');
         
         syncBtn.disabled = true;
-        syncStatus.textContent = '⏳ Sync läuft...';
+        syncStatus.textContent = 'Sync läuft...';
         syncStatus.style.color = '#fbbf24';
         
         try {
@@ -212,11 +212,11 @@
                 headers: { 'Authorization': `Basic ${authToken}` }
             });
             const data = await res.json();
-            syncStatus.textContent = `✅ ${data.gespeichert} Preise gespeichert (${data.fehler} Fehler)`;
+            syncStatus.textContent = `${data.gespeichert} Preise gespeichert (${data.fehler} Fehler)`;
             syncStatus.style.color = '#4ade80';
             loadPreise();  // Tabelle neu laden
         } catch (err) {
-            syncStatus.textContent = '❌ Fehler beim Sync';
+            syncStatus.textContent = 'Fehler beim Sync';
             syncStatus.style.color = '#fb7185';
         } finally {
             syncBtn.disabled = false;
