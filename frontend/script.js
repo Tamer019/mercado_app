@@ -247,6 +247,9 @@ function renderErgebnisse() {
       preisHtml = `<div class="preis normal">${angebot.preis.toFixed(2)}€</div>`;
     }
     const inListe = einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`);
+    const mehrePlz = aktuellePlz.includes(',');
+    const plzBadge = mehrePlz && angebot.plz_liste?.length
+      ? `<div class="gueltigkeit">PLZ: ${angebot.plz_liste.join(' · ')}</div>` : '';
     return `
       <div class="ergebnis-karte">
         <div class="haendler ${haendlerKlasse}">${angebot.haendler}</div>
@@ -255,6 +258,7 @@ function renderErgebnisse() {
           <div class="beschreibung">${angebot.beschreibung}</div>
           ${angebot.kategorie ? `<div class="gueltigkeit">${angebot.kategorie}</div>` : ''}
           ${vonDatum ? `<div class="gueltigkeit">${vonDatum} – ${bisDatum}</div>` : ''}
+          ${plzBadge}
         </div>
         <div class="preis-bereich">
           ${preisHtml}
