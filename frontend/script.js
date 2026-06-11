@@ -623,30 +623,41 @@ function goHome() {
 }
 
 // ── Zuletzt gesucht ───────────────────────────────────────────────────────────
-const ZULETZT_KEY = 'mercado_zuletzt';
 const ZULETZT_MAX = 8;
 
+function zuletztKey() {
+  const username = getUsername();
+  return username ? `mercado_zuletzt_${username}` : null;
+}
+
 function ladeZuletztGesucht() {
-  try { return JSON.parse(localStorage.getItem(ZULETZT_KEY)) || []; }
+  const key = zuletztKey();
+  if (!key) return [];
+  try { return JSON.parse(localStorage.getItem(key)) || []; }
   catch { return []; }
 }
 
 function speichereZuletztGesucht(q, plz) {
+  const key = zuletztKey();
+  if (!key) return;
   let liste = ladeZuletztGesucht().filter(e => !(e.q === q && e.plz === plz));
   liste.unshift({ q, plz });
   if (liste.length > ZULETZT_MAX) liste = liste.slice(0, ZULETZT_MAX);
-  localStorage.setItem(ZULETZT_KEY, JSON.stringify(liste));
+  localStorage.setItem(key, JSON.stringify(liste));
 }
 
 function entferneZuletzt(index) {
+  const key = zuletztKey();
+  if (!key) return;
   const liste = ladeZuletztGesucht();
   liste.splice(index, 1);
-  localStorage.setItem(ZULETZT_KEY, JSON.stringify(liste));
+  localStorage.setItem(key, JSON.stringify(liste));
   zeigeZuletztKarussell();
 }
 
 function loescheAlleZuletzt() {
-  localStorage.removeItem(ZULETZT_KEY);
+  const key = zuletztKey();
+  if (key) localStorage.removeItem(key);
   zeigeZuletztKarussell();
 }
 
