@@ -434,6 +434,7 @@
                     <thead>
                         <tr>
                             <th style="text-align:left; padding:10px 12px; color:#60a5fa; border-bottom:1px solid rgba(96,165,250,0.2);">Benutzer</th>
+                            <th style="text-align:center; padding:10px 12px; color:#94a3b8; border-bottom:1px solid rgba(96,165,250,0.2);">Registriert</th>
                             <th style="text-align:center; padding:10px 12px; color:#fb7185; border-bottom:1px solid rgba(96,165,250,0.2);">Wunschliste</th>
                             <th style="text-align:center; padding:10px 12px; color:#4ade80; border-bottom:1px solid rgba(96,165,250,0.2);">Einkaufsliste</th>
                             <th style="text-align:right; padding:10px 12px; border-bottom:1px solid rgba(96,165,250,0.2);">Aktionen</th>
@@ -442,29 +443,27 @@
                     <tbody>
                         ${users.map(u => `
                             <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                                <td style="padding:10px 12px;">
-                                    <button onclick="zeigeBenutzerDetail('${u.username.replace(/'/g, "\\'")}')"
-                                        style="background:none; border:none; color:#e0e0e0; font-size:14px; cursor:pointer; padding:0; box-shadow:none; text-align:left; text-decoration:underline; text-decoration-color:#64748b;">
-                                        ${u.username}
+                                <td style="padding:10px 12px; color:#e0e0e0; font-weight:500;">${u.username}</td>
+                                <td style="text-align:center; padding:10px 12px; color:#64748b; font-size:12px;">
+                                    ${new Date(u.erstellt_am).toLocaleDateString('de-DE')}
+                                </td>
+                                <td style="text-align:center; padding:10px 12px;">
+                                    <button onclick="zeigeBenutzerDetail('${u.username.replace(/'/g, "\\'")}', 'merkliste')"
+                                        style="background:rgba(251,113,133,0.12); color:#fb7185; border:1px solid rgba(251,113,133,0.3); border-radius:12px; padding:3px 12px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:none; min-width:32px;">
+                                        ${u.merkliste_count}
                                     </button>
                                 </td>
-                                <td style="text-align:center; padding:10px 12px; color:#fb7185;">${u.merkliste_count}</td>
-                                <td style="text-align:center; padding:10px 12px; color:#4ade80;">${u.einkauf_count}</td>
+                                <td style="text-align:center; padding:10px 12px;">
+                                    <button onclick="zeigeBenutzerDetail('${u.username.replace(/'/g, "\\'")}', 'einkaufsliste')"
+                                        style="background:rgba(74,222,128,0.1); color:#4ade80; border:1px solid rgba(74,222,128,0.3); border-radius:12px; padding:3px 12px; font-size:13px; font-weight:600; cursor:pointer; box-shadow:none; min-width:32px;">
+                                        ${u.einkauf_count}
+                                    </button>
+                                </td>
                                 <td style="text-align:right; padding:10px 12px;">
-                                    <div style="display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
-                                        <button onclick="loescheUserListe('${u.username.replace(/'/g, "\\'")}', 'merkliste')"
-                                            style="background:rgba(251,113,133,0.1); color:#fb7185; border:1px solid rgba(251,113,133,0.3); border-radius:5px; padding:4px 10px; font-size:12px; cursor:pointer; box-shadow:none;">
-                                            Wunschliste leeren
-                                        </button>
-                                        <button onclick="loescheUserListe('${u.username.replace(/'/g, "\\'")}', 'einkaufsliste')"
-                                            style="background:rgba(74,222,128,0.08); color:#4ade80; border:1px solid rgba(74,222,128,0.2); border-radius:5px; padding:4px 10px; font-size:12px; cursor:pointer; box-shadow:none;">
-                                            Einkaufsliste leeren
-                                        </button>
-                                        <button onclick="loescheAlleUserDaten('${u.username.replace(/'/g, "\\'")}')"
-                                            style="background:rgba(239,68,68,0.1); color:#f87171; border:1px solid rgba(239,68,68,0.25); border-radius:5px; padding:4px 10px; font-size:12px; cursor:pointer; box-shadow:none;">
-                                            Alles löschen
-                                        </button>
-                                    </div>
+                                    <button onclick="loescheAlleUserDaten('${u.username.replace(/'/g, "\\'")}')"
+                                        style="background:rgba(239,68,68,0.1); color:#f87171; border:1px solid rgba(239,68,68,0.25); border-radius:5px; padding:4px 10px; font-size:12px; cursor:pointer; box-shadow:none;">
+                                        Löschen
+                                    </button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -476,8 +475,9 @@
         }
     }
 
-    async function zeigeBenutzerDetail(username) {
+    async function zeigeBenutzerDetail(username, tab) {
         aktuellerBenutzer = username;
+        aktuellerTab = tab || aktuellerTab;
         document.getElementById('detailTitel').textContent = username;
         document.getElementById('benutzerDetail').style.display = 'block';
         document.getElementById('benutzerDetail').scrollIntoView({ behavior: 'smooth' });
@@ -487,6 +487,11 @@
     async function zeigeDetailTab(tab) {
         aktuellerTab = tab;
         const inhalt = document.getElementById('detailInhalt');
+
+        // Tab-Buttons hervorheben
+        document.getElementById('tab-merkliste').style.opacity = tab === 'merkliste' ? '1' : '0.45';
+        document.getElementById('tab-einkaufsliste').style.opacity = tab === 'einkaufsliste' ? '1' : '0.45';
+
         inhalt.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Lade...</p>';
 
         try {
@@ -496,34 +501,55 @@
             const items = await res.json();
 
             if (items.length === 0) {
-                inhalt.innerHTML = '<p style="color:#64748b; font-size:13px;">Keine Einträge.</p>';
+                inhalt.innerHTML = `
+                    <p style="color:#64748b; font-size:13px;">Keine Einträge.</p>
+                    <button onclick="loescheUserListe('${aktuellerBenutzer.replace(/'/g, "\\'")}', '${tab}')"
+                        style="margin-top:8px; background:rgba(239,68,68,0.1); color:#f87171; border:1px solid rgba(239,68,68,0.25); border-radius:5px; padding:5px 12px; font-size:12px; cursor:pointer; box-shadow:none;">
+                        Alle leeren
+                    </button>`;
                 return;
             }
 
-            if (tab === 'merkliste') {
-                inhalt.innerHTML = items.map(i => `
+            const loeschenEndpoint = tab === 'merkliste' ? 'merkliste' : 'einkaufsliste';
+            const itemsHtml = items.map(i => {
+                const label = tab === 'merkliste'
+                    ? `<span style="color:#e0e0e0; font-size:13px; font-weight:500;">${i.suchbegriff}</span>
+                       <span style="color:#4ade80; font-size:11px; margin-left:8px; opacity:0.7;">${i.plz}</span>`
+                    : `<span style="color:#e0e0e0; font-size:13px; font-weight:500;">${i.produkt_name}</span>
+                       <span style="color:#94a3b8; font-size:11px; margin-left:8px;">${i.haendler} · ${i.preis?.toFixed(2)}€ · ${i.plz}</span>`;
+                return `
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:rgba(15,20,25,0.4); border-radius:7px; margin-bottom:6px;">
-                        <div>
-                            <span style="color:#e0e0e0; font-size:13px; font-weight:500;">${i.suchbegriff}</span>
-                            <span style="color:#4ade80; font-size:11px; margin-left:8px; opacity:0.7;">${i.plz}</span>
+                        <div>${label}</div>
+                        <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+                            <span style="color:#475569; font-size:11px;">${new Date(i.gespeichert_am).toLocaleDateString('de-DE')}</span>
+                            <button onclick="loescheEinzelnesItem(${i.id}, '${loeschenEndpoint}')"
+                                style="background:rgba(239,68,68,0.1); color:#fb7185; border:1px solid rgba(239,68,68,0.2); border-radius:5px; padding:3px 8px; font-size:11px; cursor:pointer; box-shadow:none;">
+                                ✕
+                            </button>
                         </div>
-                        <span style="color:#475569; font-size:11px;">${new Date(i.gespeichert_am).toLocaleDateString('de-DE')}</span>
-                    </div>
-                `).join('');
-            } else {
-                inhalt.innerHTML = items.map(i => `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:rgba(15,20,25,0.4); border-radius:7px; margin-bottom:6px;">
-                        <div>
-                            <span style="color:#e0e0e0; font-size:13px; font-weight:500;">${i.produkt_name}</span>
-                            <span style="color:#94a3b8; font-size:11px; margin-left:8px;">${i.haendler} · ${i.preis?.toFixed(2)}€</span>
-                        </div>
-                        <span style="color:#475569; font-size:11px;">${i.plz}</span>
-                    </div>
-                `).join('');
-            }
+                    </div>`;
+            }).join('');
+
+            inhalt.innerHTML = `
+                <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+                    <button onclick="loescheUserListe('${aktuellerBenutzer.replace(/'/g, "\\'")}', '${tab}')"
+                        style="background:rgba(239,68,68,0.1); color:#f87171; border:1px solid rgba(239,68,68,0.25); border-radius:5px; padding:4px 12px; font-size:12px; cursor:pointer; box-shadow:none;">
+                        Alle leeren
+                    </button>
+                </div>
+                ${itemsHtml}`;
         } catch {
             inhalt.innerHTML = '<p style="color:#fb7185; font-size:13px;">Fehler beim Laden.</p>';
         }
+    }
+
+    async function loescheEinzelnesItem(id, liste) {
+        await fetch(`${API_URL}/admin/${liste}/item/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Basic ${authToken}` }
+        });
+        zeigeDetailTab(aktuellerTab);
+        ladeBenutzer();
     }
 
     async function loescheUserListe(username, liste) {
@@ -538,7 +564,7 @@
     }
 
     async function loescheAlleUserDaten(username) {
-        if (!confirm(`ALLE Daten von "${username}" löschen (Wunschliste + Einkaufsliste)?`)) return;
+        if (!confirm(`Benutzer "${username}" komplett löschen (inkl. Wunschliste & Einkaufsliste)?`)) return;
         await fetch(`${API_URL}/admin/users/${encodeURIComponent(username)}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Basic ${authToken}` }

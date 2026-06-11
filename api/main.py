@@ -84,6 +84,13 @@ async def init_db():
             )
         """)
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id          SERIAL PRIMARY KEY,
+                username    VARCHAR(100) UNIQUE NOT NULL,
+                erstellt_am TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS merkliste (
                 id              SERIAL PRIMARY KEY,
                 username        VARCHAR(100) NOT NULL,
@@ -114,6 +121,19 @@ async def init_db():
 @app.on_event("startup")
 async def startup():
     await init_db()
+
+# ========== USER ENDPOINTS ==========
+
+@app.post("/users/register")
+async def register_user(username: str):
+    conn = await get_connection()
+    await conn.execute("""
+        INSERT INTO users (username)
+        VALUES ($1)
+        ON CONFLICT (username) DO NOTHING
+    """, username)
+    await conn.close()
+    return {"message": "Registriert"}
 
 # ========== MERKLISTE ENDPOINTS ==========
 
@@ -278,16 +298,15 @@ async def suche(q: str, plz: str = "70178"):
 async def get_all_users(auth: bool = Depends(verify_admin)):
     conn = await get_connection()
     rows = await conn.fetch("""
-        SELECT username,
-               COUNT(CASE WHEN liste = 'merkliste' THEN 1 END) AS merkliste_count,
-               COUNT(CASE WHEN liste = 'einkaufsliste' THEN 1 END) AS einkauf_count
-        FROM (
-            SELECT username, 'merkliste' AS liste FROM merkliste
-            UNION ALL
-            SELECT username, 'einkaufsliste' AS liste FROM einkaufsliste
-        ) t
-        GROUP BY username
-        ORDER BY username
+        SELECT u.username,
+               u.erstellt_am,
+               COUNT(DISTINCT m.id) AS merkliste_count,
+               COUNT(DISTINCT e.id) AS einkauf_count
+        FROM users u
+        LEFT JOIN merkliste m ON m.username = u.username
+        LEFT JOIN einkaufsliste e ON e.username = u.username
+        GROUP BY u.username, u.erstellt_am
+        ORDER BY u.erstellt_am DESC
     """)
     await conn.close()
     return [dict(r) for r in rows]
@@ -333,8 +352,23 @@ async def delete_user_all(username: str, auth: bool = Depends(verify_admin)):
     conn = await get_connection()
     await conn.execute("DELETE FROM merkliste WHERE username = $1", username)
     await conn.execute("DELETE FROM einkaufsliste WHERE username = $1", username)
+    await conn.execute("DELETE FROM users WHERE username = $1", username)
     await conn.close()
     return {"message": f"Alle Daten von {username} gelöscht"}
+
+@app.delete("/admin/merkliste/item/{id}")
+async def delete_merkliste_item(id: int, auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    await conn.execute("DELETE FROM merkliste WHERE id = $1", id)
+    await conn.close()
+    return {"message": "Gelöscht"}
+
+@app.delete("/admin/einkaufsliste/item/{id}")
+async def delete_einkaufsliste_item(id: int, auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    await conn.execute("DELETE FROM einkaufsliste WHERE id = $1", id)
+    await conn.close()
+    return {"message": "Gelöscht"}
 
 @app.get("/admin/preise")
 async def get_all_originalpreise(auth: bool = Depends(verify_admin)):

@@ -310,8 +310,10 @@ function speichereUsername() {
   localStorage.setItem('mercado_username', input);
   localStorage.setItem('mercado_avatar', gewaehlterAvatar);
   document.getElementById('username-modal').style.display = 'none';
+  fetch(`${API}/users/register?username=${encodeURIComponent(input)}`, { method: 'POST' }).catch(() => {});
   zeigeAvatar();
   ladeMerkliste();
+  zeigeZuletztKarussell();
 }
 
 function zeigeAvatar() {
