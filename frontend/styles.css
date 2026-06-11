@@ -808,6 +808,167 @@ button:disabled {
   box-shadow: none;
 }
 
+/* Zuletzt gesucht Karussell */
+#zuletzt-section {
+  margin-bottom: 20px;
+}
+
+.zuletzt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.zuletzt-titel {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.zuletzt-clear-btn {
+  background: none;
+  border: none;
+  color: #475569;
+  font-size: 12px;
+  padding: 2px 6px;
+  cursor: pointer;
+  box-shadow: none;
+  font-weight: 400;
+}
+
+.zuletzt-clear-btn:hover {
+  color: #fb7185;
+  transform: none;
+  box-shadow: none;
+}
+
+.zuletzt-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zuletzt-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex: 1;
+  padding: 4px 2px 8px;
+}
+
+.zuletzt-track::-webkit-scrollbar {
+  display: none;
+}
+
+.zuletzt-kachel {
+  position: relative;
+  flex-shrink: 0;
+  width: 120px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(74, 222, 128, 0.18);
+  border-radius: 12px;
+  padding: 14px 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.zuletzt-kachel:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(74, 222, 128, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(74, 222, 128, 0.12);
+}
+
+.zuletzt-remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fb7185;
+  font-size: 9px;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.zuletzt-kachel:hover .zuletzt-remove {
+  opacity: 1;
+}
+
+.zuletzt-remove:hover {
+  background: rgba(239, 68, 68, 0.28);
+  transform: none;
+  box-shadow: none;
+}
+
+.zuletzt-icon {
+  font-size: 20px;
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+.zuletzt-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zuletzt-plz {
+  font-size: 11px;
+  color: #4ade80;
+  margin-top: 3px;
+  opacity: 0.7;
+}
+
+.zuletzt-arrow {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+  font-size: 20px;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.zuletzt-arrow:hover {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.45);
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 600px) {
+  .zuletzt-arrow { display: none; }
+}
+
 #info-popover {
   position: fixed;
   background: #1e2a3a;

@@ -619,6 +619,75 @@ function goHome() {
   schliesseVerlauf();
   alleErgebnisse = [];
   aktuellerSuchbegriff = '';
+  zeigeZuletztKarussell();
+}
+
+// ── Zuletzt gesucht ───────────────────────────────────────────────────────────
+const ZULETZT_KEY = 'mercado_zuletzt';
+const ZULETZT_MAX = 8;
+
+function ladeZuletztGesucht() {
+  try { return JSON.parse(localStorage.getItem(ZULETZT_KEY)) || []; }
+  catch { return []; }
+}
+
+function speichereZuletztGesucht(q, plz) {
+  let liste = ladeZuletztGesucht().filter(e => !(e.q === q && e.plz === plz));
+  liste.unshift({ q, plz });
+  if (liste.length > ZULETZT_MAX) liste = liste.slice(0, ZULETZT_MAX);
+  localStorage.setItem(ZULETZT_KEY, JSON.stringify(liste));
+}
+
+function entferneZuletzt(index) {
+  const liste = ladeZuletztGesucht();
+  liste.splice(index, 1);
+  localStorage.setItem(ZULETZT_KEY, JSON.stringify(liste));
+  zeigeZuletztKarussell();
+}
+
+function loescheAlleZuletzt() {
+  localStorage.removeItem(ZULETZT_KEY);
+  zeigeZuletztKarussell();
+}
+
+function sucheMitZuletzt(q, plz) {
+  document.getElementById('suchbegriff').value = q;
+  document.getElementById('plz').value = plz;
+  suchen();
+}
+
+function scrollZuletzt(dir) {
+  const track = document.getElementById('zuletzt-track');
+  if (track) track.scrollBy({ left: dir * 160, behavior: 'smooth' });
+}
+
+function zeigeZuletztKarussell() {
+  const section = document.getElementById('zuletzt-section');
+  const liste = ladeZuletztGesucht();
+
+  if (liste.length === 0) { section.style.display = 'none'; return; }
+
+  const tilesHtml = liste.map((e, i) => `
+    <div class="zuletzt-kachel" onclick="sucheMitZuletzt('${e.q.replace(/'/g, "\\'")}', '${e.plz}')">
+      <button class="zuletzt-remove" onclick="event.stopPropagation(); entferneZuletzt(${i})">✕</button>
+      <div class="zuletzt-icon">🔍</div>
+      <div class="zuletzt-name">${e.q}</div>
+      <div class="zuletzt-plz">${e.plz}</div>
+    </div>
+  `).join('');
+
+  section.innerHTML = `
+    <div class="zuletzt-header">
+      <span class="zuletzt-titel">Zuletzt gesucht</span>
+      <button class="zuletzt-clear-btn" onclick="loescheAlleZuletzt()">Alle löschen</button>
+    </div>
+    <div class="zuletzt-wrapper">
+      <button class="zuletzt-arrow" onclick="scrollZuletzt(-1)">‹</button>
+      <div class="zuletzt-track" id="zuletzt-track">${tilesHtml}</div>
+      <button class="zuletzt-arrow" onclick="scrollZuletzt(1)">›</button>
+    </div>
+  `;
+  section.style.display = 'block';
 }
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -637,6 +706,7 @@ async function suchen(pushState = true) {
   button.textContent  = 'Suche...';
   ergebnisseDiv.innerHTML = '<p class="status">Suche läuft...</p>';
   document.getElementById('filter-bar').style.display = 'none';
+  document.getElementById('zuletzt-section').style.display = 'none';
   schliesseVerlauf();
 
   try {
@@ -651,6 +721,7 @@ async function suchen(pushState = true) {
     alleErgebnisse       = daten.ergebnisse;
     aktuellerSuchbegriff = suchbegriff;
     aktuellePlz          = plz;
+    speichereZuletztGesucht(suchbegriff, plz);
     aktiverHaendler      = null;
     aktiveKategorie      = null;
     nurAngebote          = false;
@@ -685,6 +756,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     await ladeEinkaufsliste();
   }
 
+  zeigeZuletztKarussell();
+
   // Restore state from URL
   const params   = new URLSearchParams(window.location.search);
   const qParam   = params.get('q');
@@ -717,6 +790,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       schliesseVerlauf();
       alleErgebnisse = [];
       aktuellerSuchbegriff = '';
+      zeigeZuletztKarussell();
     }
   });
 });
