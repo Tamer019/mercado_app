@@ -274,6 +274,68 @@ async def suche(q: str, plz: str = "70178"):
 
 # ========== ADMIN ENDPOINTS ==========
 
+@app.get("/admin/users")
+async def get_all_users(auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    rows = await conn.fetch("""
+        SELECT username,
+               COUNT(CASE WHEN liste = 'merkliste' THEN 1 END) AS merkliste_count,
+               COUNT(CASE WHEN liste = 'einkaufsliste' THEN 1 END) AS einkauf_count
+        FROM (
+            SELECT username, 'merkliste' AS liste FROM merkliste
+            UNION ALL
+            SELECT username, 'einkaufsliste' AS liste FROM einkaufsliste
+        ) t
+        GROUP BY username
+        ORDER BY username
+    """)
+    await conn.close()
+    return [dict(r) for r in rows]
+
+@app.get("/admin/users/{username}/merkliste")
+async def get_user_merkliste_admin(username: str, auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    rows = await conn.fetch("""
+        SELECT id, suchbegriff, plz, gespeichert_am
+        FROM merkliste WHERE username = $1
+        ORDER BY gespeichert_am DESC
+    """, username)
+    await conn.close()
+    return [dict(r) for r in rows]
+
+@app.get("/admin/users/{username}/einkaufsliste")
+async def get_user_einkaufsliste_admin(username: str, auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    rows = await conn.fetch("""
+        SELECT id, produkt_name, haendler, preis, plz, gespeichert_am
+        FROM einkaufsliste WHERE username = $1
+        ORDER BY gespeichert_am DESC
+    """, username)
+    await conn.close()
+    return [dict(r) for r in rows]
+
+@app.delete("/admin/users/{username}/merkliste")
+async def clear_user_merkliste(username: str, auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    await conn.execute("DELETE FROM merkliste WHERE username = $1", username)
+    await conn.close()
+    return {"message": f"Merkliste von {username} geleert"}
+
+@app.delete("/admin/users/{username}/einkaufsliste")
+async def clear_user_einkaufsliste(username: str, auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    await conn.execute("DELETE FROM einkaufsliste WHERE username = $1", username)
+    await conn.close()
+    return {"message": f"Einkaufsliste von {username} geleert"}
+
+@app.delete("/admin/users/{username}")
+async def delete_user_all(username: str, auth: bool = Depends(verify_admin)):
+    conn = await get_connection()
+    await conn.execute("DELETE FROM merkliste WHERE username = $1", username)
+    await conn.execute("DELETE FROM einkaufsliste WHERE username = $1", username)
+    await conn.close()
+    return {"message": f"Alle Daten von {username} gelöscht"}
+
 @app.get("/admin/preise")
 async def get_all_originalpreise(auth: bool = Depends(verify_admin)):
     conn = await get_connection()
