@@ -228,6 +228,8 @@
 <script>
     const API_URL = 'https://mercado-app019.onrender.com';
     let authToken = null;
+    let adminDaten = [];
+    let adminSort = { col: null, dir: 1 };
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -258,10 +260,53 @@
         const res = await fetch(`${API_URL}/admin/preise`, {
             headers: { 'Authorization': `Basic ${authToken}` }
         });
-        const data = await res.json();
+        adminDaten = await res.json();
+        renderAdminTabelle();
+    }
+
+    function sortAdmin(col) {
+        if (adminSort.col === col) {
+            adminSort.dir *= -1;
+        } else {
+            adminSort.col = col;
+            adminSort.dir = 1;
+        }
+        renderAdminTabelle();
+    }
+
+    function renderAdminTabelle() {
+        let daten = [...adminDaten];
+        if (adminSort.col) {
+            daten.sort((a, b) => {
+                const va = a[adminSort.col] ?? '';
+                const vb = b[adminSort.col] ?? '';
+                if (typeof va === 'number') return (va - vb) * adminSort.dir;
+                return String(va).localeCompare(String(vb), 'de') * adminSort.dir;
+            });
+        }
+
+        const pfeil = (col) => {
+            if (adminSort.col !== col) return '<span style="color:#475569; font-size:10px;"> ↕</span>';
+            return adminSort.dir === 1
+                ? '<span style="color:#4ade80; font-size:10px;"> ↑</span>'
+                : '<span style="color:#4ade80; font-size:10px;"> ↓</span>';
+        };
+
+        const thStyle = 'cursor:pointer; user-select:none; white-space:nowrap;';
+        const thead = document.querySelector('#preiseTable thead tr');
+        thead.innerHTML = `
+            <th>ID</th>
+            <th style="${thStyle}" onclick="sortAdmin('produkt_name')">Produkt ${pfeil('produkt_name')}</th>
+            <th style="${thStyle}" onclick="sortAdmin('haendler')">Händler ${pfeil('haendler')}</th>
+            <th style="${thStyle}" onclick="sortAdmin('plz')">PLZ ${pfeil('plz')}</th>
+            <th style="${thStyle}" onclick="sortAdmin('preis')">Preis ${pfeil('preis')}</th>
+            <th style="${thStyle}" onclick="sortAdmin('quelle')">Quelle ${pfeil('quelle')}</th>
+            <th>Aktion</th>
+        `;
+
         const tbody = document.querySelector('#preiseTable tbody');
         tbody.innerHTML = '';
-        data.forEach(p => {
+        daten.forEach(p => {
             const row = tbody.insertRow();
             row.insertCell(0).innerText = p.id;
             row.insertCell(1).innerText = p.produkt_name;

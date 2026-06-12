@@ -140,6 +140,7 @@ let alleErgebnisse    = [];
 let aktiverHaendler   = null;
 let aktiveKategorie   = null;
 let nurAngebote       = false;
+let aktiveSortierung  = 'preis-asc';
 let aktuellerSuchbegriff = '';
 let aktuellePlz       = '';
 
@@ -175,14 +176,41 @@ function zeigeFilterBar() {
   html += `<button class="info-btn" onclick="toggleInfo(event, 'Zeigt nur Produkte, die aktuell im Angebot sind. Einträge mit Normalpreis aus der Datenbank werden ausgeblendet.')">?</button>`;
   html += '</div>';
 
+  // Sortierung
+  const sortOptionen = [
+    { key: 'preis-asc',  label: 'Preis ↑' },
+    { key: 'preis-desc', label: 'Preis ↓' },
+    { key: 'name-asc',   label: 'Name A→Z' },
+    { key: 'name-desc',  label: 'Name Z→A' },
+  ];
+  html += '<div class="filter-gruppe">';
+  html += '<span class="filter-label">Sortierung</span>';
+  sortOptionen.forEach(s => {
+    html += `<button class="filter-btn${aktiveSortierung === s.key ? ' aktiv' : ''}" onclick="setSortierung('${s.key}')">${s.label}</button>`;
+  });
+  html += '</div>';
+
   const bar = document.getElementById('filter-bar');
   bar.innerHTML = html;
   bar.style.display = 'block';
 }
 
-function setHaendler(h)   { aktiverHaendler  = h; zeigeFilterBar(); renderErgebnisse(); }
-function setKategorie(k)  { aktiveKategorie  = k; zeigeFilterBar(); renderErgebnisse(); }
-function toggleNurAngebote() { nurAngebote   = !nurAngebote; zeigeFilterBar(); renderErgebnisse(); }
+function setHaendler(h)      { aktiverHaendler  = h; zeigeFilterBar(); renderErgebnisse(); }
+function setKategorie(k)     { aktiveKategorie  = k; zeigeFilterBar(); renderErgebnisse(); }
+function toggleNurAngebote() { nurAngebote = !nurAngebote; zeigeFilterBar(); renderErgebnisse(); }
+function setSortierung(s)    { aktiveSortierung = s; zeigeFilterBar(); renderErgebnisse(); }
+
+function sortiereErgebnisse(arr) {
+  return [...arr].sort((a, b) => {
+    switch (aktiveSortierung) {
+      case 'preis-asc':  return (a.preis ?? 999) - (b.preis ?? 999);
+      case 'preis-desc': return (b.preis ?? 0)   - (a.preis ?? 0);
+      case 'name-asc':   return (a.produkt || '').localeCompare(b.produkt || '', 'de');
+      case 'name-desc':  return (b.produkt || '').localeCompare(a.produkt || '', 'de');
+      default:           return 0;
+    }
+  });
+}
 
 function istExakterTreffer(produktName, suchbegriff) {
   if (!produktName || !suchbegriff) return false;
@@ -226,6 +254,7 @@ function renderErgebnisse() {
     return;
   }
 
+  gefiltert = sortiereErgebnisse(gefiltert);
   const exakt    = gefiltert.filter(e => istExakterTreffer(e.produkt, aktuellerSuchbegriff));
   const weiteres = gefiltert.filter(e => !istExakterTreffer(e.produkt, aktuellerSuchbegriff));
 
@@ -738,6 +767,7 @@ async function suchen(pushState = true) {
     aktiverHaendler      = null;
     aktiveKategorie      = null;
     nurAngebote          = false;
+    aktiveSortierung     = 'preis-asc';
 
     if (pushState) updateURL({ q: suchbegriff, plz });
     zeigeFilterBar();
