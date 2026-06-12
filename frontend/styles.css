@@ -808,6 +808,56 @@ button:disabled {
   box-shadow: none;
 }
 
+/* Autocomplete */
+.suchbegriff-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 140px;
+}
+
+.suchbegriff-wrapper input {
+  width: 100%;
+  min-width: 0;
+}
+
+#vorschlaege {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #1a1f2e;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  overflow: hidden;
+  display: none;
+}
+
+.vorschlag-item {
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #e0e0e0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.vorschlag-item:last-child {
+  border-bottom: none;
+}
+
+.vorschlag-item:hover,
+.vorschlag-item.aktiv {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+}
+
+.vorschlag-highlight {
+  color: #4ade80;
+  font-weight: 700;
+}
+
 /* Zuletzt gesucht Karussell */
 #zuletzt-section {
   margin-bottom: 20px;
@@ -967,6 +1017,26 @@ button:disabled {
 
 @media (max-width: 600px) {
   .zuletzt-arrow { display: none; }
+}
+
+.vorschlag-link-btn {
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  margin: 0 3px;
+  transition: all 0.2s ease;
+}
+
+.vorschlag-link-btn:hover {
+  background: rgba(74, 222, 128, 0.22);
+  transform: none;
+  box-shadow: none;
 }
 
 #info-popover {

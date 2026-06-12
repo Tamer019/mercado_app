@@ -213,6 +213,21 @@ async def remove_from_einkaufsliste(username: str, id: int):
 def root():
     return {"message": "Mercado API läuft!"}
 
+@app.get("/suggest")
+async def suggest(q: str):
+    if len(q) < 2:
+        return []
+    conn = await get_connection()
+    rows = await conn.fetch("""
+        SELECT DISTINCT produkt_name
+        FROM originalpreise
+        WHERE produkt_name ILIKE $1
+        ORDER BY produkt_name
+        LIMIT 8
+    """, f"%{q}%")
+    await conn.close()
+    return [row["produkt_name"] for row in rows]
+
 @app.get("/search")
 async def suche(q: str, plz: str = "70178"):
     plz_liste = [p.strip() for p in plz.split(",") if p.strip()]

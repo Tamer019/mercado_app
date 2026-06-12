@@ -732,6 +732,95 @@ function zeigeZuletztKarussell() {
   section.style.display = 'block';
 }
 
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+let aktiverVorschlagIndex = -1;
+let vorschlagDebounce = null;
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+async function findeAehnliche(q) {
+  try {
+    const res = await fetch(`${API}/suggest?q=${encodeURIComponent(q.slice(0, 4))}`);
+    const kandidaten = await res.json();
+    return kandidaten
+      .map(p => ({ p, dist: levenshtein(q.toLowerCase(), p.toLowerCase().slice(0, q.length + 2)) }))
+      .filter(x => x.dist <= 2)
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 3)
+      .map(x => x.p);
+  } catch { return []; }
+}
+
+function zeigeVorschlaege() {
+  clearTimeout(vorschlagDebounce);
+  vorschlagDebounce = setTimeout(async () => {
+    const q = document.getElementById('suchbegriff').value.trim();
+    const container = document.getElementById('vorschlaege');
+    aktiverVorschlagIndex = -1;
+
+    if (q.length < 2) { container.style.display = 'none'; return; }
+
+    try {
+      const res = await fetch(`${API}/suggest?q=${encodeURIComponent(q)}`);
+      const vorschlaege = await res.json();
+
+      if (vorschlaege.length === 0) { container.style.display = 'none'; return; }
+
+      container.innerHTML = vorschlaege.map(v => {
+        const idx = v.toLowerCase().indexOf(q.toLowerCase());
+        const highlighted = idx >= 0
+          ? v.slice(0, idx) + `<span class="vorschlag-highlight">${v.slice(idx, idx + q.length)}</span>` + v.slice(idx + q.length)
+          : v;
+        return `<div class="vorschlag-item" onmousedown="waehleVorschlag('${v.replace(/'/g, "\\'")}')">${highlighted}</div>`;
+      }).join('');
+      container.style.display = 'block';
+    } catch {
+      container.style.display = 'none';
+    }
+  }, 200);
+}
+
+function navigiereVorschlaege(e) {
+  const items = document.querySelectorAll('.vorschlag-item');
+  if (!items.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    aktiverVorschlagIndex = Math.min(aktiverVorschlagIndex + 1, items.length - 1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    aktiverVorschlagIndex = Math.max(aktiverVorschlagIndex - 1, -1);
+  } else if (e.key === 'Escape') {
+    schliesseVorschlaege();
+    return;
+  } else {
+    return;
+  }
+
+  items.forEach((el, i) => el.classList.toggle('aktiv', i === aktiverVorschlagIndex));
+  if (aktiverVorschlagIndex >= 0) {
+    document.getElementById('suchbegriff').value = items[aktiverVorschlagIndex].textContent;
+  }
+}
+
+function waehleVorschlag(v) {
+  document.getElementById('suchbegriff').value = v;
+  schliesseVorschlaege();
+  suchen();
+}
+
+function schliesseVorschlaege() {
+  document.getElementById('vorschlaege').style.display = 'none';
+  aktiverVorschlagIndex = -1;
+}
+
 // ── Search ────────────────────────────────────────────────────────────────────
 async function suchen(pushState = true) {
   const suchbegriff    = document.getElementById('suchbegriff').value.trim();
@@ -756,7 +845,13 @@ async function suchen(pushState = true) {
     const daten   = await antwort.json();
 
     if (daten.anzahl === 0) {
-      ergebnisseDiv.innerHTML = '<p class="status">Keine Angebote gefunden. Versuche einen anderen Suchbegriff.</p>';
+      const aehnliche = await findeAehnliche(suchbegriff);
+      const vorschlagHtml = aehnliche.length
+        ? `<p class="status" style="margin-top:8px;">Meinten Sie: ${aehnliche.map(v =>
+            `<button class="vorschlag-link-btn" onclick="waehleVorschlag('${v.replace(/'/g, "\\'")}')">${v}</button>`
+          ).join('')}?</p>`
+        : '';
+      ergebnisseDiv.innerHTML = `<p class="status">Keine Angebote gefunden. Versuche einen anderen Suchbegriff.</p>${vorschlagHtml}`;
       return;
     }
 
@@ -783,10 +878,20 @@ async function suchen(pushState = true) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async function() {
-  ['suchbegriff', 'plz'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') suchen(); });
-  });
+  const suchfeld = document.getElementById('suchbegriff');
+  if (suchfeld) {
+    suchfeld.addEventListener('input', zeigeVorschlaege);
+    suchfeld.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        schliesseVorschlaege();
+        suchen();
+      } else {
+        navigiereVorschlaege(e);
+      }
+    });
+    suchfeld.addEventListener('blur', () => setTimeout(schliesseVorschlaege, 150));
+  }
+  document.getElementById('plz')?.addEventListener('keydown', e => { if (e.key === 'Enter') suchen(); });
 
   document.getElementById('username-input')
     ?.addEventListener('keydown', e => { if (e.key === 'Enter') speichereUsername(); });

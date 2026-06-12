@@ -58,7 +58,10 @@
 
     <!-- Suchbox -->
     <div class="suchbox">
-      <input type="text" id="suchbegriff" placeholder="Produkt eingeben, z.B. Mango" />
+      <div class="suchbegriff-wrapper">
+        <input type="text" id="suchbegriff" placeholder="Produkt eingeben, z.B. Mango" autocomplete="off" />
+        <div id="vorschlaege"></div>
+      </div>
       <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
         <input type="text" id="plz" placeholder="PLZ, z.B. 72555, 71229" value="72555" style="max-width: 180px;" />
         <button class="info-btn" onclick="toggleInfo(event, 'Eine oder mehrere PLZ kommagetrennt eingeben, z.B. 72555, 71229. Ergebnisse aller PLZ werden zusammengeführt.')">?</button>
