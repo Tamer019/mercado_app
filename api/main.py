@@ -302,7 +302,7 @@ async def suche(q: str, plz: str = "70178"):
                 "ist_angebot": False,
                 "plz_liste": [row["plz"]],
                 "bild_url": None,
-                "quelle": "db",
+                "quelle": row["quelle"] or "db",
             }
         elif row["plz"] not in db_map[key]["plz_liste"]:
             db_map[key]["plz_liste"].append(row["plz"])

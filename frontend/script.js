@@ -258,6 +258,27 @@ function renderErgebnisse() {
   const exakt    = gefiltert.filter(e => istExakterTreffer(e.produkt, aktuellerSuchbegriff));
   const weiteres = gefiltert.filter(e => !istExakterTreffer(e.produkt, aktuellerSuchbegriff));
 
+  const QUELL_BADGE = {
+    'marktguru':    { label: 'MG',  title: 'Marktguru API',    color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
+    'rewe':         { label: 'RW',  title: 'REWE Online',      color: '#fb7185', bg: 'rgba(251,113,133,0.12)' },
+    'api_sync':     { label: 'API', title: 'API-Sync',         color: '#4ade80', bg: 'rgba(74,222,128,0.12)' },
+    'admin_manuell':{ label: 'ADM', title: 'Manuell erfasst',  color: '#c084fc', bg: 'rgba(192,132,252,0.12)' },
+    'scraper':      { label: 'SC',  title: 'Scraper',          color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+    'db':           { label: 'DB',  title: 'Datenbank',        color: '#94a3b8', bg: 'rgba(148,163,184,0.1)'  },
+  };
+
+  function quellBadgeHtml(quelle) {
+    const q = QUELL_BADGE[quelle] || { label: quelle?.slice(0,3).toUpperCase() || '?', title: quelle || 'Unbekannt', color: '#64748b', bg: 'rgba(100,116,139,0.1)' };
+    return `<span title="${q.title}" style="
+      font-size:10px; font-weight:700; letter-spacing:0.04em;
+      color:${q.color}; background:${q.bg};
+      border:1px solid ${q.color}33;
+      border-radius:4px; padding:1px 5px;
+      position:absolute; top:8px; right:8px;
+      cursor:default; user-select:none;
+    ">${q.label}</span>`;
+  }
+
   function karteHtml(angebot) {
     const vonDatum = angebot.gueltig_von
       ? new Date(angebot.gueltig_von).toLocaleDateString('de-DE') : '';
@@ -286,7 +307,8 @@ function renderErgebnisse() {
     const plzBadge = mehrePlz && angebot.plz_liste?.length
       ? `<div class="gueltigkeit">PLZ: ${angebot.plz_liste.join(' · ')}</div>` : '';
     return `
-      <div class="ergebnis-karte">
+      <div class="ergebnis-karte" style="position:relative;">
+        ${quellBadgeHtml(angebot.quelle)}
         ${bildHtml}
         <div class="haendler ${haendlerKlasse}">${angebot.haendler}</div>
         <div class="produkt-info">
