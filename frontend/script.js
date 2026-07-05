@@ -268,13 +268,14 @@ function renderErgebnisse() {
   };
 
   function quellBadgeHtml(quelle) {
-    const q = QUELL_BADGE[quelle] || { label: quelle?.slice(0,3).toUpperCase() || '?', title: quelle || 'Unbekannt', color: '#64748b', bg: 'rgba(100,116,139,0.1)' };
+    const q = QUELL_BADGE[quelle] || { label: quelle?.slice(0,3).toUpperCase() || '?', title: quelle || 'Unbekannt' };
     return `<span title="${q.title}" style="
-      font-size:10px; font-weight:700; letter-spacing:0.04em;
-      color:${q.color}; background:${q.bg};
-      border:1px solid ${q.color}33;
-      border-radius:4px; padding:1px 5px;
-      position:absolute; top:8px; right:8px;
+      font-size:9px; font-weight:600; letter-spacing:0.03em;
+      color:rgba(255,255,255,0.2);
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.07);
+      border-radius:3px; padding:1px 4px;
+      position:absolute; top:6px; right:6px;
       cursor:default; user-select:none;
     ">${q.label}</span>`;
   }
