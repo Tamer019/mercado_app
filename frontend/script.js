@@ -271,16 +271,23 @@ function renderErgebnisse() {
       preisHtml = angebot.alter_preis && angebot.alter_preis > 0
         ? `<div class="preis">${angebot.preis.toFixed(2)}€ <span class="statt-preis">statt ${angebot.alter_preis.toFixed(2)}€</span></div>`
         : `<div class="preis">${angebot.preis.toFixed(2)}€</div>`;
+    } else if (angebot.quelle === 'rewe') {
+      badgeHtml = '<span class="rewe-online-badge">REWE Online</span>';
+      preisHtml = `<div class="preis normal">${angebot.preis.toFixed(2)}€</div>`;
     } else {
       badgeHtml = '<span class="normalpreis-badge">Normalpreis</span>';
       preisHtml = `<div class="preis normal">${angebot.preis.toFixed(2)}€</div>`;
     }
+    const bildHtml = angebot.bild_url
+      ? `<img class="produkt-bild" src="${angebot.bild_url}" alt="${angebot.produkt}" loading="lazy" onerror="this.style.display='none'">`
+      : '';
     const inListe = einkaufItems.has(`${angebot.produkt}|${angebot.haendler}|${aktuellePlz}`);
     const mehrePlz = aktuellePlz.includes(',');
     const plzBadge = mehrePlz && angebot.plz_liste?.length
       ? `<div class="gueltigkeit">PLZ: ${angebot.plz_liste.join(' · ')}</div>` : '';
     return `
       <div class="ergebnis-karte">
+        ${bildHtml}
         <div class="haendler ${haendlerKlasse}">${angebot.haendler}</div>
         <div class="produkt-info">
           <div class="produkt-name">${angebot.produkt}</div>

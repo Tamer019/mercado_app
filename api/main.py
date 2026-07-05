@@ -256,7 +256,9 @@ async def suche(q: str, plz: str = "70178"):
                         "gueltig_von": angebot.get("validityDates", [{}])[0].get("from", ""),
                         "gueltig_bis": angebot.get("validityDates", [{}])[0].get("to", ""),
                         "ist_angebot": True,
-                        "plz_liste": [p]
+                        "plz_liste": [p],
+                        "bild_url": None,
+                        "quelle": "marktguru",
                     }
                 elif p not in angebote_map[key]["plz_liste"]:
                     angebote_map[key]["plz_liste"].append(p)
@@ -272,7 +274,7 @@ async def suche(q: str, plz: str = "70178"):
                 FROM originalpreise
                 WHERE produkt_name ILIKE $1
             """, f"%{q}%"),
-            suche_rewe_produkte(q, plz_liste[0] if plz_liste else "72555"),
+            suche_rewe_produkte(q, "72555"),
         )
     rows = db_rows
 
@@ -292,7 +294,9 @@ async def suche(q: str, plz: str = "70178"):
                 "gueltig_von": None,
                 "gueltig_bis": None,
                 "ist_angebot": False,
-                "plz_liste": [row["plz"]]
+                "plz_liste": [row["plz"]],
+                "bild_url": None,
+                "quelle": "db",
             }
         elif row["plz"] not in db_map[key]["plz_liste"]:
             db_map[key]["plz_liste"].append(row["plz"])

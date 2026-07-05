@@ -1,7 +1,6 @@
 import httpx
 
-REWE_STORE_URL  = "https://www.rewe.de/api/stores/search"
-REWE_SEARCH_URL = "https://www.rewe.de/api/products/search"
+REWE_SEARCH_URL = "https://shop.rewe.de/api/products"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
@@ -9,58 +8,59 @@ HEADERS = {
     "Referer": "https://www.rewe.de/",
 }
 
-_markt_cache: dict[str, str | None] = {}
+# PLZ → REWE Market ID (Abholservice)
+PLZ_MARKT_MAP = {
+    "72555": "840881",
+}
+
+DEFAULT_MARKT_ID = "840881"
 
 
-async def finde_markt_id(plz: str) -> str | None:
-    if plz in _markt_cache:
-        return _markt_cache[plz]
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(REWE_STORE_URL, params={"search": plz, "limit": 1}, headers=HEADERS)
-            stores = r.json().get("stores", [])
-            markt_id = stores[0].get("id") if stores else None
-            _markt_cache[plz] = markt_id
-            return markt_id
-    except Exception:
-        _markt_cache[plz] = None
-        return None
+def _markt_id(plz: str) -> str:
+    return PLZ_MARKT_MAP.get(plz, DEFAULT_MARKT_ID)
 
 
 async def suche_rewe_produkte(q: str, plz: str) -> list[dict]:
-    markt_id = await finde_markt_id(plz)
-    if not markt_id:
-        return []
+    markt_id = _markt_id(plz)
     try:
-        async with httpx.AsyncClient(timeout=8) as client:
+        async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
             r = await client.get(REWE_SEARCH_URL, params={
                 "search": q,
                 "marketId": markt_id,
                 "serviceTypes": "PICKUP",
                 "pageSize": 20,
             }, headers=HEADERS)
-            produkte = r.json().get("products", [])
+            produkte = r.json().get("_embedded", {}).get("products", [])
     except Exception:
         return []
 
     ergebnisse = []
     for p in produkte:
-        preis = p.get("pricing", {}).get("currentRetailPrice")
-        name  = p.get("name", "")
-        if not preis or not name:
+        artikel = p.get("_embedded", {}).get("articles", [{}])[0]
+        listing = artikel.get("_embedded", {}).get("listing", {})
+        pricing = listing.get("pricing", {})
+
+        preis_cents = pricing.get("currentRetailPrice")
+        if not preis_cents:
             continue
+
+        preis = round(preis_cents / 100, 2)
+        name  = p.get("productName", "")
+        bild  = p.get("media", {}).get("images", [{}])[0].get("_links", {}).get("self", {}).get("href")
+
         ergebnisse.append({
             "produkt":      name,
-            "beschreibung": p.get("grammage", ""),
+            "beschreibung": pricing.get("grammage", ""),
             "haendler":     "REWE",
             "preis":        preis,
-            "alter_preis":  p.get("pricing", {}).get("regularRetailPrice"),
-            "einheit":      p.get("quantityAndUnit", ""),
-            "kategorie":    p.get("categoryName", ""),
+            "alter_preis":  None,
+            "einheit":      pricing.get("grammage", ""),
+            "kategorie":    "",
             "gueltig_von":  None,
             "gueltig_bis":  None,
-            "ist_angebot":  p.get("pricing", {}).get("currentRetailPrice") != p.get("pricing", {}).get("regularRetailPrice"),
+            "ist_angebot":  False,
             "plz_liste":    [plz],
             "quelle":       "rewe",
+            "bild_url":     bild,
         })
     return ergebnisse
