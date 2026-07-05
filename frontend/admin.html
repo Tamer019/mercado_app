@@ -125,11 +125,56 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        #cancelSyncBtn {
+            background: rgba(239,68,68,0.15);
+            color: #fb7185;
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 6px;
+            padding: 8px 14px;
+            cursor: pointer;
+            font-weight: bold;
+            display: none;
+        }
         .sync-box {
             background: rgba(74, 222, 128, 0.1);
             padding: 15px;
             border-radius: 12px;
             margin-bottom: 20px;
+        }
+        #letzterSyncBadge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(30,41,59,0.7);
+            border: 1px solid rgba(74,222,128,0.2);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 12px;
+            color: #64748b;
+            cursor: pointer;
+            transition: border-color 0.2s;
+            margin-left: 8px;
+        }
+        #letzterSyncBadge:hover {
+            border-color: rgba(74,222,128,0.5);
+            color: #94a3b8;
+        }
+        #letzterSyncTooltip {
+            display: none;
+            background: rgba(15,20,30,0.97);
+            border: 1px solid rgba(74,222,128,0.25);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.7;
+        }
+        #syncResultMsg {
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            margin-left: 10px;
         }
     </style>
 </head>
@@ -146,9 +191,18 @@
 
     <div id="adminContent" style="display: none;">
         <div style="background: rgba(74, 222, 128, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-        <h3>OldPrice Sync</h3>
-        <button id="syncBtn" style="background: #4ade80; color: black; padding: 8px 16px;">OldPrices aus API übernehmen</button>
-        <span id="syncStatus" style="margin-left: 10px;"></span>
+            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                <h3 style="margin: 0;">OldPrice Sync</h3>
+                <span id="letzterSyncBadge" onclick="toggleLetzterSync()">
+                    <span style="font-size: 10px;">●</span> <span id="letzterSyncLabel">Letzter Sync</span>
+                </span>
+            </div>
+            <div id="letzterSyncTooltip"></div>
+            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                <button id="syncBtn" style="background: #4ade80; color: black; padding: 8px 16px;">OldPrices aus API übernehmen</button>
+                <button id="cancelSyncBtn" onclick="cancelSync()">Abbrechen</button>
+                <span id="syncResultMsg"></span>
+            </div>
         </div>
 
         <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -218,7 +272,7 @@
         </div>
         <table id="preiseTable">
             <thead>
-                <tr><th>ID</th><th>Produkt</th><th>Händler</th><th>PLZ</th><th>Preis</th><th>Quelle</th><th>Aktion</th></tr>
+                <tr><th>ID</th><th>Produkt</th><th>Händler</th><th>PLZ</th><th>Preis</th><th>Quelle</th><th>Gespeichert</th><th>Aktion</th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -230,6 +284,7 @@
     let authToken = null;
     let adminDaten = [];
     let adminSort = { col: null, dir: 1 };
+    let letzterSyncOffen = false;
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -248,6 +303,7 @@
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('adminContent').style.display = 'block';
                 loadPreise();
+                ladeLetzterSync();
             } else {
                 alert('Login fehlgeschlagen');
             }
@@ -301,6 +357,7 @@
             <th style="${thStyle}" onclick="sortAdmin('plz')">PLZ ${pfeil('plz')}</th>
             <th style="${thStyle}" onclick="sortAdmin('preis')">Preis ${pfeil('preis')}</th>
             <th style="${thStyle}" onclick="sortAdmin('quelle')">Quelle ${pfeil('quelle')}</th>
+            <th style="${thStyle}" onclick="sortAdmin('updated_at')">Gespeichert ${pfeil('updated_at')}</th>
             <th>Aktion</th>
         `;
 
@@ -314,7 +371,18 @@
             row.insertCell(3).innerText = p.plz;
             row.insertCell(4).innerText = p.preis + '€';
             row.insertCell(5).innerText = p.quelle;
-            const deleteCell = row.insertCell(6);
+            const tsCell = row.insertCell(6);
+            if (p.updated_at) {
+                const d = new Date(p.updated_at);
+                tsCell.innerText = d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'2-digit' })
+                    + ' ' + d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+                tsCell.style.fontSize = '12px';
+                tsCell.style.color = '#64748b';
+            } else {
+                tsCell.innerText = '—';
+                tsCell.style.color = '#475569';
+            }
+            const deleteCell = row.insertCell(7);
             const deleteBtn = document.createElement('button');
             deleteBtn.innerText = 'Löschen';
             deleteBtn.className = 'delete-btn';
@@ -423,32 +491,108 @@
     // ========== Sync-Button Funktion ==========
     document.getElementById('syncBtn').addEventListener('click', async () => {
         const syncBtn = document.getElementById('syncBtn');
-        const syncStatus = document.getElementById('syncStatus');
-        
+        const cancelBtn = document.getElementById('cancelSyncBtn');
+        const msgEl = document.getElementById('syncResultMsg');
+
         syncBtn.disabled = true;
-        syncStatus.textContent = 'Sync läuft...';
-        syncStatus.style.color = '#fbbf24';
-        
+        cancelBtn.style.display = 'inline-block';
+        msgEl.textContent = 'Sync läuft...';
+        msgEl.style.color = '#fbbf24';
+        msgEl.style.background = 'rgba(251,191,36,0.08)';
+
         try {
             const res = await fetch(`${API_URL}/admin/sync-oldprices`, {
                 method: 'POST',
                 headers: { 'Authorization': `Basic ${authToken}` }
             });
             const data = await res.json();
-            syncStatus.textContent = `${data.gespeichert} Preise gespeichert (${data.fehler} Fehler)`;
-            syncStatus.style.color = '#4ade80';
-            loadPreise();  // Tabelle neu laden
+            const abgebrochen = data.abgebrochen ? ' (abgebrochen)' : '';
+            msgEl.textContent = `✓ ${data.gespeichert} Preise gespeichert, ${data.fehler} Fehler${abgebrochen}`;
+            msgEl.style.color = data.fehler > 0 ? '#fbbf24' : '#4ade80';
+            msgEl.style.background = data.fehler > 0 ? 'rgba(251,191,36,0.08)' : 'rgba(74,222,128,0.08)';
+            loadPreise();
+            ladeLetzterSync();
         } catch (err) {
-            syncStatus.textContent = 'Fehler beim Sync';
-            syncStatus.style.color = '#fb7185';
+            msgEl.textContent = '✕ Fehler beim Sync';
+            msgEl.style.color = '#fb7185';
+            msgEl.style.background = 'rgba(239,68,68,0.08)';
         } finally {
             syncBtn.disabled = false;
-            setTimeout(() => { 
-                syncStatus.textContent = '';
-                syncStatus.style.color = '';
-            }, 5000);
+            cancelBtn.style.display = 'none';
         }
     });
+
+    async function cancelSync() {
+        const msgEl = document.getElementById('syncResultMsg');
+        try {
+            await fetch(`${API_URL}/admin/sync-cancel`, {
+                method: 'POST',
+                headers: { 'Authorization': `Basic ${authToken}` }
+            });
+            msgEl.textContent = 'Abbruch angefordert...';
+            msgEl.style.color = '#fb7185';
+        } catch {
+            msgEl.textContent = 'Abbruch fehlgeschlagen';
+        }
+    }
+
+    async function ladeLetzterSync() {
+        try {
+            const res = await fetch(`${API_URL}/admin/sync-status`, {
+                headers: { 'Authorization': `Basic ${authToken}` }
+            });
+            const data = await res.json();
+            const badge = document.getElementById('letzterSyncBadge');
+            const label = document.getElementById('letzterSyncLabel');
+            if (data.last_result) {
+                const d = new Date(data.last_result.timestamp);
+                label.textContent = 'Sync: ' + d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' })
+                    + ' ' + d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+                badge.style.borderColor = 'rgba(74,222,128,0.35)';
+                badge.title = 'Letzten Sync-Bericht anzeigen';
+            } else {
+                label.textContent = 'Noch kein Sync';
+            }
+        } catch {}
+    }
+
+    function toggleLetzterSync() {
+        letzterSyncOffen = !letzterSyncOffen;
+        const tooltip = document.getElementById('letzterSyncTooltip');
+        if (!letzterSyncOffen) {
+            tooltip.style.display = 'none';
+            return;
+        }
+        fetch(`${API_URL}/admin/sync-status`, {
+            headers: { 'Authorization': `Basic ${authToken}` }
+        }).then(r => r.json()).then(data => {
+            if (!data.last_result) {
+                tooltip.innerHTML = '<span style="color:#475569;">Noch kein Sync durchgeführt.</span>';
+            } else {
+                const r = data.last_result;
+                const d = new Date(r.timestamp);
+                const datumStr = d.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' })
+                    + ' um ' + d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' }) + ' Uhr';
+                const abbrStr = r.abgebrochen
+                    ? '<span style="color:#fb7185;"> · abgebrochen</span>'
+                    : '<span style="color:#4ade80;"> · abgeschlossen</span>';
+                tooltip.innerHTML = `
+                    <div style="color:#e0e0e0; font-weight:600; margin-bottom:6px;">Letzter Sync${abbrStr}</div>
+                    <div>📅 ${datumStr}</div>
+                    <div style="margin-top:4px;">
+                        <span style="color:#4ade80;">✓ ${r.gespeichert} gespeichert</span>
+                        &nbsp;·&nbsp;
+                        <span style="color:${r.fehler > 0 ? '#fbbf24' : '#64748b'};">${r.fehler} Fehler</span>
+                        &nbsp;·&nbsp;
+                        <span style="color:#64748b;">${r.kategorien} Kategorien</span>
+                    </div>`;
+            }
+            tooltip.style.display = 'block';
+        }).catch(() => {
+            tooltip.innerHTML = '<span style="color:#fb7185;">Fehler beim Laden.</span>';
+            tooltip.style.display = 'block';
+        });
+    }
     // ========== ENDE Sync ==========
 
     // ========== Benutzer-Verwaltung ==========
