@@ -26,7 +26,8 @@ HEADERS = {
     "x-apikey": "8Kk+pmbf7TgJ9nVj2cXeA7P5zBGv8iuutVVMRfOfvNE="
 }
 
-ERLAUBTE_HAENDLER = ["aldi", "lidl", "rewe", "edeka"]
+ERLAUBTE_HAENDLER = ["aldi", "lidl", "rewe", "edeka", "kaufland"]
+BLOCKIERTE_HAENDLER = ["edeka foodservice"]
 
 SYNC_KATEGORIEN = [
     "obst", "gemüse", "fleisch", "wurst", "fisch",
@@ -43,6 +44,8 @@ sync_state = {
 
 def haendler_erlaubt(name: str) -> bool:
     name_lower = name.lower()
+    if any(b in name_lower for b in BLOCKIERTE_HAENDLER):
+        return False
     return any(h in name_lower for h in ERLAUBTE_HAENDLER)
 
 # Admin Auth (Hardcoded für den Anfang)
