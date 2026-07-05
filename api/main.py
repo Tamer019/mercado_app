@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from typing import Optional
-import requests
+import httpx
 import secrets
 from .db_connection import get_connection
 
@@ -234,33 +234,34 @@ async def suche(q: str, plz: str = "70178"):
 
     # 1. Marktguru für jede PLZ abfragen, Ergebnisse nach (haendler, produkt, preis) mergen
     angebote_map = {}
-    for p in plz_liste:
-        response = requests.get(MARKTGURU_URL, params={
-            "as": "web", "limit": 50, "offset": 0, "q": q, "zipCode": p
-        }, headers=HEADERS)
-        for angebot in response.json().get("results", []):
-            haendler = angebot.get("advertisers", [{}])[0].get("name", "")
-            if not haendler or not haendler_erlaubt(haendler):
-                continue
-            produkt_name = angebot.get("product", {}).get("name", "")
-            preis = angebot.get("price")
-            key = (haendler, produkt_name, preis)
-            if key not in angebote_map:
-                angebote_map[key] = {
-                    "produkt": produkt_name,
-                    "beschreibung": angebot.get("description", ""),
-                    "haendler": haendler,
-                    "preis": preis,
-                    "alter_preis": angebot.get("oldPrice"),
-                    "einheit": angebot.get("unit", {}).get("shortName", ""),
-                    "kategorie": angebot.get("categories", [{}])[0].get("name", ""),
-                    "gueltig_von": angebot.get("validityDates", [{}])[0].get("from", ""),
-                    "gueltig_bis": angebot.get("validityDates", [{}])[0].get("to", ""),
-                    "ist_angebot": True,
-                    "plz_liste": [p]
-                }
-            elif p not in angebote_map[key]["plz_liste"]:
-                angebote_map[key]["plz_liste"].append(p)
+    async with httpx.AsyncClient() as client:
+        for p in plz_liste:
+            response = await client.get(MARKTGURU_URL, params={
+                "as": "web", "limit": 50, "offset": 0, "q": q, "zipCode": p
+            }, headers=HEADERS)
+            for angebot in response.json().get("results", []):
+                haendler = angebot.get("advertisers", [{}])[0].get("name", "")
+                if not haendler or not haendler_erlaubt(haendler):
+                    continue
+                produkt_name = angebot.get("product", {}).get("name", "")
+                preis = angebot.get("price")
+                key = (haendler, produkt_name, preis)
+                if key not in angebote_map:
+                    angebote_map[key] = {
+                        "produkt": produkt_name,
+                        "beschreibung": angebot.get("description", ""),
+                        "haendler": haendler,
+                        "preis": preis,
+                        "alter_preis": angebot.get("oldPrice"),
+                        "einheit": angebot.get("unit", {}).get("shortName", ""),
+                        "kategorie": angebot.get("categories", [{}])[0].get("name", ""),
+                        "gueltig_von": angebot.get("validityDates", [{}])[0].get("from", ""),
+                        "gueltig_bis": angebot.get("validityDates", [{}])[0].get("to", ""),
+                        "ist_angebot": True,
+                        "plz_liste": [p]
+                    }
+                elif p not in angebote_map[key]["plz_liste"]:
+                    angebote_map[key]["plz_liste"].append(p)
 
     haendler_mit_angebot = {key[0] for key in angebote_map}
 
@@ -466,41 +467,42 @@ async def sync_oldprices(auth: bool = Depends(verify_admin)):
 
     conn = await get_connection()
     try:
-        for kategorie in SYNC_KATEGORIEN:
-            offset = 0
-            while True:
-                response = requests.get(MARKTGURU_URL, params={
-                    "as": "web",
-                    "limit": 50,
-                    "offset": offset,
-                    "q": kategorie,
-                    "zipCode": PLZ
-                }, headers=HEADERS)
+        async with httpx.AsyncClient() as client:
+            for kategorie in SYNC_KATEGORIEN:
+                offset = 0
+                while True:
+                    response = await client.get(MARKTGURU_URL, params={
+                        "as": "web",
+                        "limit": 50,
+                        "offset": offset,
+                        "q": kategorie,
+                        "zipCode": PLZ
+                    }, headers=HEADERS)
 
-                angebote = response.json().get("results") or []
+                    angebote = response.json().get("results") or []
 
-                for angebot in angebote:
-                    haendler     = angebot.get("advertisers", [{}])[0].get("name", "")
-                    alter_preis  = angebot.get("oldPrice")
-                    produkt_name = angebot.get("product", {}).get("name", "")
+                    for angebot in angebote:
+                        haendler     = angebot.get("advertisers", [{}])[0].get("name", "")
+                        alter_preis  = angebot.get("oldPrice")
+                        produkt_name = angebot.get("product", {}).get("name", "")
 
-                    if not (haendler_erlaubt(haendler) and alter_preis and alter_preis > 0 and produkt_name):
-                        continue
-                    try:
-                        await conn.execute("""
-                            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-                            VALUES ($1, $2, $3, $4, 'api_sync')
-                            ON CONFLICT (produkt_name, haendler, plz)
-                            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_sync', updated_at = NOW()
-                        """, produkt_name, haendler, PLZ, alter_preis)
-                        gespeichert += 1
-                    except Exception as e:
-                        fehler += 1
-                        print(f"DB Fehler: {e}")
+                        if not (haendler_erlaubt(haendler) and alter_preis and alter_preis > 0 and produkt_name):
+                            continue
+                        try:
+                            await conn.execute("""
+                                INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+                                VALUES ($1, $2, $3, $4, 'api_sync')
+                                ON CONFLICT (produkt_name, haendler, plz)
+                                DO UPDATE SET preis = EXCLUDED.preis, quelle = 'api_sync', updated_at = NOW()
+                            """, produkt_name, haendler, PLZ, alter_preis)
+                            gespeichert += 1
+                        except Exception as e:
+                            fehler += 1
+                            print(f"DB Fehler: {e}")
 
-                if len(angebote) < 50:
-                    break
-                offset += 50
+                    if len(angebote) < 50:
+                        break
+                    offset += 50
     finally:
         await conn.close()
 
