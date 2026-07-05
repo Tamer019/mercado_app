@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 import httpx
 import secrets
-from .db_connection import get_connection
+from .db_connection import get_db, init_pool, close_pool
 
 app = FastAPI()
 
@@ -54,110 +54,110 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
 # Datenbank-Initialisierung (Tabelle erstellen, falls nicht vorhanden)
 async def init_db():
     try:
-        conn = await get_connection()
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS angebote (
-                id              SERIAL PRIMARY KEY,
-                produkt_name    VARCHAR(200),
-                beschreibung    TEXT,
-                haendler        VARCHAR(100),
-                preis           FLOAT,
-                alter_preis     FLOAT,
-                einheit         VARCHAR(20),
-                kategorie       VARCHAR(100),
-                gueltig_von     TIMESTAMP,
-                gueltig_bis     TIMESTAMP,
-                plz             VARCHAR(10),
-                gespeichert_am  TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS originalpreise (
-                id              SERIAL PRIMARY KEY,
-                produkt_name    VARCHAR(200) NOT NULL,
-                haendler        VARCHAR(100) NOT NULL,
-                plz             VARCHAR(10) NOT NULL,
-                preis           FLOAT NOT NULL,
-                quelle          VARCHAR(50) DEFAULT 'scraper',
-                updated_at      TIMESTAMP DEFAULT NOW(),
-                UNIQUE(produkt_name, haendler, plz)
-            )
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id          SERIAL PRIMARY KEY,
-                username    VARCHAR(100) UNIQUE NOT NULL,
-                erstellt_am TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS merkliste (
-                id              SERIAL PRIMARY KEY,
-                username        VARCHAR(100) NOT NULL,
-                suchbegriff     VARCHAR(200) NOT NULL,
-                plz             VARCHAR(10) NOT NULL DEFAULT '72555',
-                gespeichert_am  TIMESTAMP DEFAULT NOW(),
-                UNIQUE(username, suchbegriff, plz)
-            )
-        """)
-        await conn.execute("""
-            CREATE TABLE IF NOT EXISTS einkaufsliste (
-                id              SERIAL PRIMARY KEY,
-                username        VARCHAR(100) NOT NULL,
-                produkt_name    VARCHAR(200) NOT NULL,
-                haendler        VARCHAR(100) NOT NULL,
-                preis           FLOAT,
-                plz             VARCHAR(10),
-                gespeichert_am  TIMESTAMP DEFAULT NOW(),
-                UNIQUE(username, produkt_name, haendler, plz)
-            )
-        """)
-        await conn.close()
+        async with get_db() as conn:
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS angebote (
+                    id              SERIAL PRIMARY KEY,
+                    produkt_name    VARCHAR(200),
+                    beschreibung    TEXT,
+                    haendler        VARCHAR(100),
+                    preis           FLOAT,
+                    alter_preis     FLOAT,
+                    einheit         VARCHAR(20),
+                    kategorie       VARCHAR(100),
+                    gueltig_von     TIMESTAMP,
+                    gueltig_bis     TIMESTAMP,
+                    plz             VARCHAR(10),
+                    gespeichert_am  TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS originalpreise (
+                    id              SERIAL PRIMARY KEY,
+                    produkt_name    VARCHAR(200) NOT NULL,
+                    haendler        VARCHAR(100) NOT NULL,
+                    plz             VARCHAR(10) NOT NULL,
+                    preis           FLOAT NOT NULL,
+                    quelle          VARCHAR(50) DEFAULT 'scraper',
+                    updated_at      TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(produkt_name, haendler, plz)
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id          SERIAL PRIMARY KEY,
+                    username    VARCHAR(100) UNIQUE NOT NULL,
+                    erstellt_am TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS merkliste (
+                    id              SERIAL PRIMARY KEY,
+                    username        VARCHAR(100) NOT NULL,
+                    suchbegriff     VARCHAR(200) NOT NULL,
+                    plz             VARCHAR(10) NOT NULL DEFAULT '72555',
+                    gespeichert_am  TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(username, suchbegriff, plz)
+                )
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS einkaufsliste (
+                    id              SERIAL PRIMARY KEY,
+                    username        VARCHAR(100) NOT NULL,
+                    produkt_name    VARCHAR(200) NOT NULL,
+                    haendler        VARCHAR(100) NOT NULL,
+                    preis           FLOAT,
+                    plz             VARCHAR(10),
+                    gespeichert_am  TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(username, produkt_name, haendler, plz)
+                )
+            """)
         print("✅ DB tables ready")
     except Exception as e:
         print(f"❌ DB init error: {e}")
 
-# Startup-Event: Läuft einmal beim Start
 @app.on_event("startup")
 async def startup():
+    await init_pool()
     await init_db()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await close_pool()
 
 # ========== USER ENDPOINTS ==========
 
 @app.post("/users/register")
 async def register_user(username: str):
-    conn = await get_connection()
-    await conn.execute("""
-        INSERT INTO users (username)
-        VALUES ($1)
-        ON CONFLICT (username) DO NOTHING
-    """, username)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("""
+            INSERT INTO users (username)
+            VALUES ($1)
+            ON CONFLICT (username) DO NOTHING
+        """, username)
     return {"message": "Registriert"}
 
 # ========== MERKLISTE ENDPOINTS ==========
 
 @app.get("/merkliste/{username}")
 async def get_merkliste(username: str):
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT suchbegriff, plz, gespeichert_am
-        FROM merkliste
-        WHERE username = $1
-        ORDER BY gespeichert_am DESC
-    """, username)
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT suchbegriff, plz, gespeichert_am
+            FROM merkliste
+            WHERE username = $1
+            ORDER BY gespeichert_am DESC
+        """, username)
     return [dict(r) for r in rows]
 
 @app.post("/merkliste/{username}")
 async def add_to_merkliste(username: str, suchbegriff: str, plz: str = "72555"):
-    conn = await get_connection()
-    await conn.execute("""
-        INSERT INTO merkliste (username, suchbegriff, plz)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (username, suchbegriff, plz) DO NOTHING
-    """, username, suchbegriff, plz)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("""
+            INSERT INTO merkliste (username, suchbegriff, plz)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (username, suchbegriff, plz) DO NOTHING
+        """, username, suchbegriff, plz)
     return {"message": "Gespeichert"}
 
 @app.delete("/merkliste/{username}")
@@ -166,46 +166,42 @@ async def remove_from_merkliste(
     suchbegriff: str = Query(...),
     plz: str = Query(...)
 ):
-    conn = await get_connection()
-    await conn.execute("""
-        DELETE FROM merkliste
-        WHERE username = $1 AND suchbegriff = $2 AND plz = $3
-    """, username, suchbegriff, plz)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("""
+            DELETE FROM merkliste
+            WHERE username = $1 AND suchbegriff = $2 AND plz = $3
+        """, username, suchbegriff, plz)
     return {"message": "Entfernt"}
 
 # ========== EINKAUFSLISTE ENDPOINTS ==========
 
 @app.get("/einkaufsliste/{username}")
 async def get_einkaufsliste(username: str):
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT id, produkt_name, haendler, preis, plz, gespeichert_am
-        FROM einkaufsliste
-        WHERE username = $1
-        ORDER BY gespeichert_am DESC
-    """, username)
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT id, produkt_name, haendler, preis, plz, gespeichert_am
+            FROM einkaufsliste
+            WHERE username = $1
+            ORDER BY gespeichert_am DESC
+        """, username)
     return [dict(r) for r in rows]
 
 @app.post("/einkaufsliste/{username}")
 async def add_to_einkaufsliste(username: str, produkt_name: str, haendler: str, preis: float, plz: str):
-    conn = await get_connection()
-    await conn.execute("""
-        INSERT INTO einkaufsliste (username, produkt_name, haendler, preis, plz)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (username, produkt_name, haendler, plz) DO NOTHING
-    """, username, produkt_name, haendler, preis, plz)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("""
+            INSERT INTO einkaufsliste (username, produkt_name, haendler, preis, plz)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (username, produkt_name, haendler, plz) DO NOTHING
+        """, username, produkt_name, haendler, preis, plz)
     return {"message": "Gespeichert"}
 
 @app.delete("/einkaufsliste/{username}/{id}")
 async def remove_from_einkaufsliste(username: str, id: int):
-    conn = await get_connection()
-    await conn.execute("""
-        DELETE FROM einkaufsliste WHERE username = $1 AND id = $2
-    """, username, id)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("""
+            DELETE FROM einkaufsliste WHERE username = $1 AND id = $2
+        """, username, id)
     return {"message": "Entfernt"}
 
 # ========== PUBLIC ENDPOINTS ==========
@@ -217,15 +213,14 @@ def root():
 async def suggest(q: str):
     if len(q) < 2:
         return []
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT DISTINCT produkt_name
-        FROM originalpreise
-        WHERE produkt_name ILIKE $1
-        ORDER BY produkt_name
-        LIMIT 8
-    """, f"%{q}%")
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT DISTINCT produkt_name
+            FROM originalpreise
+            WHERE produkt_name ILIKE $1
+            ORDER BY produkt_name
+            LIMIT 8
+        """, f"%{q}%")
     return [row["produkt_name"] for row in rows]
 
 @app.get("/search")
@@ -266,13 +261,12 @@ async def suche(q: str, plz: str = "70178"):
     haendler_mit_angebot = {key[0] for key in angebote_map}
 
     # 2. Originalpreise aus DB für alle PLZs holen
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT produkt_name, haendler, preis, plz
-        FROM originalpreise
-        WHERE produkt_name ILIKE $1 AND plz = ANY($2::text[])
-    """, f"%{q}%", plz_liste)
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT produkt_name, haendler, preis, plz
+            FROM originalpreise
+            WHERE produkt_name ILIKE $1 AND plz = ANY($2::text[])
+        """, f"%{q}%", plz_liste)
 
     # DB-Ergebnisse nach (haendler, produkt, preis) mergen
     db_map = {}
@@ -312,127 +306,115 @@ async def suche(q: str, plz: str = "70178"):
 
 @app.get("/admin/users")
 async def get_all_users(auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT u.username,
-               u.erstellt_am,
-               COUNT(DISTINCT m.id) AS merkliste_count,
-               COUNT(DISTINCT e.id) AS einkauf_count
-        FROM users u
-        LEFT JOIN merkliste m ON m.username = u.username
-        LEFT JOIN einkaufsliste e ON e.username = u.username
-        GROUP BY u.username, u.erstellt_am
-        ORDER BY u.erstellt_am DESC
-    """)
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT u.username,
+                   u.erstellt_am,
+                   COUNT(DISTINCT m.id) AS merkliste_count,
+                   COUNT(DISTINCT e.id) AS einkauf_count
+            FROM users u
+            LEFT JOIN merkliste m ON m.username = u.username
+            LEFT JOIN einkaufsliste e ON e.username = u.username
+            GROUP BY u.username, u.erstellt_am
+            ORDER BY u.erstellt_am DESC
+        """)
     return [dict(r) for r in rows]
 
 @app.get("/admin/users/{username}/merkliste")
 async def get_user_merkliste_admin(username: str, auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT id, suchbegriff, plz, gespeichert_am
-        FROM merkliste WHERE username = $1
-        ORDER BY gespeichert_am DESC
-    """, username)
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT id, suchbegriff, plz, gespeichert_am
+            FROM merkliste WHERE username = $1
+            ORDER BY gespeichert_am DESC
+        """, username)
     return [dict(r) for r in rows]
 
 @app.get("/admin/users/{username}/einkaufsliste")
 async def get_user_einkaufsliste_admin(username: str, auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT id, produkt_name, haendler, preis, plz, gespeichert_am
-        FROM einkaufsliste WHERE username = $1
-        ORDER BY gespeichert_am DESC
-    """, username)
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT id, produkt_name, haendler, preis, plz, gespeichert_am
+            FROM einkaufsliste WHERE username = $1
+            ORDER BY gespeichert_am DESC
+        """, username)
     return [dict(r) for r in rows]
 
 @app.delete("/admin/users/{username}/merkliste")
 async def clear_user_merkliste(username: str, auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    await conn.execute("DELETE FROM merkliste WHERE username = $1", username)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("DELETE FROM merkliste WHERE username = $1", username)
     return {"message": f"Merkliste von {username} geleert"}
 
 @app.delete("/admin/users/{username}/einkaufsliste")
 async def clear_user_einkaufsliste(username: str, auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    await conn.execute("DELETE FROM einkaufsliste WHERE username = $1", username)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("DELETE FROM einkaufsliste WHERE username = $1", username)
     return {"message": f"Einkaufsliste von {username} geleert"}
 
 @app.delete("/admin/users/{username}")
 async def delete_user_all(username: str, auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    await conn.execute("DELETE FROM merkliste WHERE username = $1", username)
-    await conn.execute("DELETE FROM einkaufsliste WHERE username = $1", username)
-    await conn.execute("DELETE FROM users WHERE username = $1", username)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("DELETE FROM merkliste WHERE username = $1", username)
+        await conn.execute("DELETE FROM einkaufsliste WHERE username = $1", username)
+        await conn.execute("DELETE FROM users WHERE username = $1", username)
     return {"message": f"Alle Daten von {username} gelöscht"}
 
 @app.delete("/admin/merkliste/item/{id}")
 async def delete_merkliste_item(id: int, auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    await conn.execute("DELETE FROM merkliste WHERE id = $1", id)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("DELETE FROM merkliste WHERE id = $1", id)
     return {"message": "Gelöscht"}
 
 @app.delete("/admin/einkaufsliste/item/{id}")
 async def delete_einkaufsliste_item(id: int, auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    await conn.execute("DELETE FROM einkaufsliste WHERE id = $1", id)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("DELETE FROM einkaufsliste WHERE id = $1", id)
     return {"message": "Gelöscht"}
 
 @app.get("/admin/preise")
 async def get_all_originalpreise(auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT id, produkt_name, haendler, plz, preis, quelle, updated_at
-        FROM originalpreise
-        ORDER BY produkt_name, haendler
-    """)
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT id, produkt_name, haendler, plz, preis, quelle, updated_at
+            FROM originalpreise
+            ORDER BY produkt_name, haendler
+        """)
     return [dict(row) for row in rows]
 
 @app.post("/admin/preise")
 async def add_originalpreis(
-    produkt_name: str, 
-    haendler: str, 
-    plz: str, 
+    produkt_name: str,
+    haendler: str,
+    plz: str,
     preis: float,
     auth: bool = Depends(verify_admin)
 ):
-    conn = await get_connection()
-    await conn.execute("""
-        INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
-        VALUES ($1, $2, $3, $4, 'admin_manuell')
-        ON CONFLICT (produkt_name, haendler, plz)
-        DO UPDATE SET preis = EXCLUDED.preis, quelle = 'admin_manuell', updated_at = NOW()
-    """, produkt_name, haendler, plz, preis)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("""
+            INSERT INTO originalpreise (produkt_name, haendler, plz, preis, quelle)
+            VALUES ($1, $2, $3, $4, 'admin_manuell')
+            ON CONFLICT (produkt_name, haendler, plz)
+            DO UPDATE SET preis = EXCLUDED.preis, quelle = 'admin_manuell', updated_at = NOW()
+        """, produkt_name, haendler, plz, preis)
     return {"message": "Preis gespeichert"}
 
 @app.delete("/admin/preise/{id}")
 async def delete_originalpreis(id: int, auth: bool = Depends(verify_admin)):
-    conn = await get_connection()
-    await conn.execute("DELETE FROM originalpreise WHERE id = $1", id)
-    await conn.close()
+    async with get_db() as conn:
+        await conn.execute("DELETE FROM originalpreise WHERE id = $1", id)
     return {"message": "Preis gelöscht"}
 
 
 @app.get("/history")
 async def verlauf(q: str, plz: str = "72555"):
-    conn = await get_connection()
-    rows = await conn.fetch("""
-        SELECT haendler, preis, alter_preis, gueltig_von
-        FROM angebote
-        WHERE produkt_name ILIKE $1 AND plz = $2
-        ORDER BY haendler, gueltig_von
-    """, f"%{q}%", plz)
-    await conn.close()
+    async with get_db() as conn:
+        rows = await conn.fetch("""
+            SELECT haendler, preis, alter_preis, gueltig_von
+            FROM angebote
+            WHERE produkt_name ILIKE $1 AND plz = $2
+            ORDER BY haendler, gueltig_von
+        """, f"%{q}%", plz)
 
     haendler_map = {}
     for row in rows:
@@ -465,8 +447,7 @@ async def sync_oldprices(auth: bool = Depends(verify_admin)):
     gespeichert = 0
     fehler = 0
 
-    conn = await get_connection()
-    try:
+    async with get_db() as conn:
         async with httpx.AsyncClient() as client:
             for kategorie in SYNC_KATEGORIEN:
                 offset = 0
@@ -503,8 +484,6 @@ async def sync_oldprices(auth: bool = Depends(verify_admin)):
                     if len(angebote) < 50:
                         break
                     offset += 50
-    finally:
-        await conn.close()
 
     return {
         "message": "Sync abgeschlossen",
