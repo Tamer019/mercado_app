@@ -267,8 +267,8 @@ async def suche(q: str, plz: str = "70178"):
         rows = await conn.fetch("""
             SELECT produkt_name, haendler, preis, plz
             FROM originalpreise
-            WHERE produkt_name ILIKE $1 AND plz = ANY($2::text[])
-        """, f"%{q}%", plz_liste)
+            WHERE produkt_name ILIKE $1
+        """, f"%{q}%")
 
     # DB-Ergebnisse nach (haendler, produkt, preis) mergen
     db_map = {}
