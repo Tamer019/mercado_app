@@ -215,12 +215,14 @@ async def suggest(q: str):
         return []
     async with get_db() as conn:
         rows = await conn.fetch("""
-            SELECT DISTINCT produkt_name
-            FROM originalpreise
+            SELECT DISTINCT produkt_name FROM originalpreise
+            WHERE produkt_name ILIKE $1
+            UNION
+            SELECT DISTINCT produkt_name FROM angebote
             WHERE produkt_name ILIKE $1
             ORDER BY produkt_name
             LIMIT 8
-        """, f"%{q}%")
+        """, f"%{q}%", f"%{q}%")
     return [row["produkt_name"] for row in rows]
 
 @app.get("/search")
