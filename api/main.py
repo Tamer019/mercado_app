@@ -7,6 +7,7 @@ from typing import Optional
 import httpx
 import secrets
 from .db_connection import get_db, init_pool, close_pool
+from .rewe_api import suche_rewe_produkte
 
 app = FastAPI()
 
@@ -262,13 +263,18 @@ async def suche(q: str, plz: str = "70178"):
 
     haendler_mit_angebot = {key[0] for key in angebote_map}
 
-    # 2. Originalpreise aus DB für alle PLZs holen
+    # 2. Originalpreise aus DB + REWE API parallel abfragen
+    import asyncio
     async with get_db() as conn:
-        rows = await conn.fetch("""
-            SELECT produkt_name, haendler, preis, plz
-            FROM originalpreise
-            WHERE produkt_name ILIKE $1
-        """, f"%{q}%")
+        db_rows, rewe_ergebnisse = await asyncio.gather(
+            conn.fetch("""
+                SELECT produkt_name, haendler, preis, plz
+                FROM originalpreise
+                WHERE produkt_name ILIKE $1
+            """, f"%{q}%"),
+            suche_rewe_produkte(q, plz_liste[0] if plz_liste else "72555"),
+        )
+    rows = db_rows
 
     # DB-Ergebnisse nach (haendler, produkt, preis) mergen
     db_map = {}
@@ -296,6 +302,10 @@ async def suche(q: str, plz: str = "70178"):
     for key, entry in db_map.items():
         if key[0] not in haendler_mit_angebot:
             ergebnisse.append(entry)
+
+    # REWE-Ergebnisse hinzufügen (nur wenn kein Marktguru-Treffer für REWE)
+    if "REWE" not in haendler_mit_angebot:
+        ergebnisse.extend(rewe_ergebnisse)
 
     ergebnisse.sort(key=lambda x: x["preis"] or 999)
 
